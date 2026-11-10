@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <!-- Option 4: Velocity Pulse Minimalist Path -->
+  <g id="icon" transform="translate(4, 4)">
+    <!-- Flat baseline rising to steep curve with pulse rings -->
+    <path d="M 4 28 L 14 28 C 20 28, 24 22, 28 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <!-- Velocity wave dots -->
+    <circle cx="28" cy="10" r="3.5" fill="currentColor"/>
+    <circle cx="34" cy="10" r="2" fill="#e5484d"/>
+  </g>
+  <text x="54" y="32" font-family="'Satoshi', system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" letter-spacing="-1.2px" fill="currentColor">
+    accel<tspan fill="#e5484d">.</tspan>
+  </text>
+  <circle cx="150" cy="27" r="3" fill="#e5484d"/>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <!-- Option 3: Technical Blueprint Titleblock -->
+  <g id="icon" transform="translate(4, 4)">
+    <rect x="2" y="2" width="36" height="36" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-width="2"/>
+    <!-- Technical brackets & grid lines -->
+    <path d="M 6 10 L 6 6 L 10 6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <path d="M 30 6 L 34 6 L 34 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <path d="M 6 30 L 6 34 L 10 34" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <path d="M 30 34 L 34 34 L 34 30" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <!-- Stylized math symbol: a. with dv/dt step -->
+    <path d="M 11 26 L 19 26 Q 23 26 23 21 Q 23 15 27 15 L 29 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <circle cx="29" cy="15" r="2.8" fill="#e5484d"/>
+  </g>
+  <text x="56" y="32" font-family="'Satoshi', system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" letter-spacing="-1px" fill="currentColor">
+    accel<tspan fill="#e5484d">.</tspan>
+  </text>
+  <text x="148" y="18" font-family="'IBM Plex Mono', monospace" font-size="9" font-weight="700" fill="currentColor" opacity="0.6">
+    v2.0
+  </text>
+</svg>

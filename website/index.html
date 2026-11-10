@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en" data-theme="paper">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>accel. — Precision Mouse Acceleration for Tactical Shooters & Valorant</title>
+  <meta name="description" content="accel. is a modern, high-precision interface for kernel-level mouse acceleration. Gain microscopic headshot precision and lightning-fast 180° flicks in Valorant and CS2.">
+
+  <!-- Typefaces: Satoshi & Cabinet Grotesk via Fontshare, IBM Plex Mono for technical data -->
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=cabinet-grotesk@700,800,900&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navigation / Titleblock Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand" aria-label="accel. home">
+        <img src="logos/logo-opt1.svg" alt="accel." class="brand-logo-svg" id="headerLogo">
+        <span class="brand-badge">v2.0</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#demo" class="nav-link">Interactive Demo</a>
+        <a href="#valorant" class="nav-link">Valorant Aim Guide</a>
+        <a href="#logos" class="nav-link">Logo Concepts</a>
+        <a href="download.html" class="nav-link">Download</a>
+      </nav>
+
+      <div class="header-actions">
+        <select class="theme-select" aria-label="Select theme">
+          <option value="paper">Theme: Paper</option>
+          <option value="graphite">Theme: Graphite</option>
+          <option value="blueprint">Theme: Blueprint</option>
+          <option value="obsidian">Theme: Obsidian</option>
+          <option value="cyberpunk">Theme: Cyberpunk</option>
+          <option value="chalk">Theme: Chalk</option>
+        </select>
+        <a href="download.html" class="btn btn-primary btn-sm">Get accel.</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-meta">
+          <span class="pulse-dot"></span>
+          <span>KERNEL-LEVEL MOUSE ACCELERATION · ZERO LATENCY</span>
+        </div>
+        <h1 class="hero-title">
+          Microscopic precision.<br>
+          <span class="highlight">Instant 180s.</span><br>
+          Zero compromise.
+        </h1>
+        <p class="hero-desc">
+          Stop choosing between low sensitivity for pixel-perfect headshots and high sensitivity for wide angle checks. <b>accel.</b> gives you steady crosshair placement at low hand speed and snappy flicks at high hand speed—backed by an anti-cheat signed driver.
+        </p>
+
+        <div class="hero-actions">
+          <a href="download.html" class="btn btn-accent btn-lg">
+            Download for Windows
+            <span style="font-family:var(--font-mono); font-size:12px; opacity:0.8;">(x64)</span>
+          </a>
+          <a href="#demo" class="btn btn-secondary btn-lg">Try Demo in Browser ↓</a>
+          <a href="https://github.com/jeelnadaa/better-rawaccel" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">
+            GitHub
+          </a>
+        </div>
+
+        <div class="hero-badges">
+          <span><i>✓</i> Vanguard &amp; EAC Whitelisted</span>
+          <span><i>✓</i> 14 Engineering Themes</span>
+          <span><i>✓</i> 0.00ms Input Lag</span>
+          <span><i>✓</i> 100% Free &amp; Open Source</span>
+        </div>
+      </div>
+
+      <!-- Live Mini Curve Visualizer Card -->
+      <div class="hero-preview">
+        <div class="app-frame">
+          <div class="app-frame-head">
+            <div class="app-frame-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <span>accel. // live_curve_preview.raw</span>
+            <span style="color:var(--accent); font-weight:700;">NATURAL · ACTIVE</span>
+          </div>
+          <div class="app-frame-body">
+            <div class="curve-box">
+              <canvas id="heroCurveCanvas"></canvas>
+            </div>
+            <div class="curve-readouts">
+              <div class="readout-col">
+                <div class="lbl">Hand Speed</div>
+                <div class="val"><span id="heroSensIn">0.0</span> <small style="font-size:10px; font-weight:400; color:var(--ink3);">c/ms</small></div>
+              </div>
+              <div class="readout-col">
+                <div class="lbl">Multiplier</div>
+                <div class="val" style="color:var(--accent);"><span id="heroSensMul">1.00×</span></div>
+              </div>
+              <div class="readout-col">
+                <div class="lbl">Output Speed</div>
+                <div class="val"><span id="heroSensOut">0.0</span> <small style="font-size:10px; font-weight:400; color:var(--ink3);">c/ms</small></div>
+              </div>
+              <div class="readout-col">
+                <div class="lbl">Valorant cm/360</div>
+                <div class="val" style="color:var(--blue);"><span id="heroSensCm">52 cm</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Aim & Acceleration Demo Section -->
+  <section class="demo-section" id="demo">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Interactive Simulation</span>
+        <h2 class="section-title">Feel the difference in your browser</h2>
+        <p class="section-desc">
+          Select your real mouse DPI below. Move your cursor inside the practice zone to aim at targets. Toggle between flat sensitivity and active acceleration to experience the mechanical advantage directly.
+        </p>
+      </div>
+
+      <div class="demo-wrapper">
+        <div class="demo-screen">
+          <div class="aim-canvas-container" id="aimContainer">
+            <canvas id="aimCanvas"></canvas>
+            <div class="aim-instructions">
+              <b>Aim Area:</b> Move mouse to aim · Click targets to hit · Notice red targets require micro-precision!
+            </div>
+          </div>
+
+          <div class="stat-pills">
+            <div class="stat-pill">
+              <div class="k">Targets Hit</div>
+              <div class="v" id="demoHits">0</div>
+            </div>
+            <div class="stat-pill">
+              <div class="k">Accuracy</div>
+              <div class="v" id="demoAccuracy">100%</div>
+            </div>
+            <div class="stat-pill">
+              <div class="k">Live Hand Speed</div>
+              <div class="v" id="demoLiveSpeed">0.0 c/ms</div>
+            </div>
+            <div class="stat-pill">
+              <div class="k">Live Multiplier</div>
+              <div class="v" id="demoLiveSens">1.00×</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar Demo Controls -->
+        <div class="demo-controls-sidebar">
+          <div class="control-group">
+            <label class="control-label">Acceleration Engine</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" id="btnAccelOn">Active (accel.)</button>
+              <button class="toggle-btn" id="btnAccelOff">Off (Flat Sens)</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="demoDpi">Your Mouse DPI <small>improves accuracy</small></label>
+            <select class="control-select" id="demoDpi">
+              <option value="400">400 DPI (Low)</option>
+              <option value="800" selected>800 DPI (Standard)</option>
+              <option value="1600">1600 DPI (High Precision)</option>
+              <option value="3200">3200 DPI (Ultra)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="demoCurveType">Curve Shape</label>
+            <select class="control-select" id="demoCurveType">
+              <option value="natural" selected>Natural (Smooth Ease)</option>
+              <option value="linear">Linear (Constant Slope)</option>
+              <option value="jump">Jump (Step Boost)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Velocity Cap</span>
+              <small id="demoLimitVal">1.8×</small>
+            </div>
+            <input type="range" class="range-slider" id="demoLimit" min="1.1" max="2.5" step="0.1" value="1.8">
+          </div>
+
+          <div class="control-group" style="padding-top:12px; border-top:1px solid var(--border);">
+            <div class="control-label">
+              <span>Valorant Effective cm/360:</span>
+            </div>
+            <div style="font-family:var(--font-mono); font-size:18px; font-weight:700; color:var(--blue);" id="demoLiveCm">
+              47 cm/360
+            </div>
+            <p style="font-size:12px; color:var(--ink3); line-height:1.4;">
+              At low speeds you get high cm/360 (slow, stable clicks). During quick flicks, effective cm/360 drops so you turn with less pad space.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Valorant Aim Mechanics Section -->
+  <section class="section" id="valorant">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Competitive Guide</span>
+        <h2 class="section-title">Why pro players use acceleration in Valorant</h2>
+        <p class="section-desc">
+          Valorant is a tactical shooter that punishes inconsistent crosshair placement. Here is how mathematical mouse acceleration solves the physical dilemma of low vs high sensitivity.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-num">01 // TACTICAL ANGLE HOLDING</span>
+          <h3 class="feature-title">Micro-adjustments at Long Range</h3>
+          <p class="feature-desc">
+            When peeking A-Long on Haven or holding Mid on Ascent, your mouse moves in tiny increments (< 3 counts/ms). Below your offset, <b>accel.</b> acts as pure low sensitivity, giving you steady 50+ cm/360 stability for single-pixel head clicks without jitter.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">02 // WIDE ANGLE CHECKING</span>
+          <h3 class="feature-title">180° Site Clearing &amp; Flashes</h3>
+          <p class="feature-desc">
+            Dodging a Skye bird, reacting to a Kay/O flash, or clearing close corners on Bind usually forces low-sens players to swipe 40cm and lift their mouse. With a natural curve, a fast swipe smoothly multiplies output so you execute an exact 180° turn on 15cm of pad.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">03 // MUSCLE MEMORY</span>
+          <h3 class="feature-title">Mathematical Determinism</h3>
+          <p class="feature-desc">
+            Unlike legacy Windows "Enhance Pointer Precision" (which has erratic frame-rate dependent polling), <b>accel.</b> calculates your speed using fixed mathematical equations inside a kernel filter driver. Moving your hand at speed <i>v</i> produces the exact same displacement every single time.
+          </p>
+        </div>
+      </div>
+
+      <!-- Scenarios Grid -->
+      <div class="scenarios-grid">
+        <div class="scenario-card">
+          <span class="scenario-tag">SCENARIO A</span>
+          <h4 class="scenario-title">Jett &amp; Neon Dashes</h4>
+          <p class="scenario-body">
+            Track opponents sliding past your screen at close range without flying off your mousepad or sacrificing micro-precision when they stop.
+          </p>
+        </div>
+        <div class="scenario-card">
+          <span class="scenario-tag">SCENARIO B</span>
+          <h4 class="scenario-title">Oping &amp; Marshal Clicks</h4>
+          <p class="scenario-body">
+            Lock onto tight doorway gaps with zero shaky drift, while retaining the flick speed required to hit aggressive jump-peekers.
+          </p>
+        </div>
+        <div class="scenario-card">
+          <span class="scenario-tag">SCENARIO C</span>
+          <h4 class="scenario-title">Arm Fatigue Reduction</h4>
+          <p class="scenario-body">
+            Eliminate repetitive full-desk arm reset swipes during 40-minute competitive matches. Your wrist handles micro-aim, small swipes handle turns.
+          </p>
+        </div>
+      </div>
+
+      <!-- Anti-Cheat / Vanguard Box -->
+      <div class="callout-box">
+        <div class="callout-icon">🛡️</div>
+        <div class="callout-content">
+          <h4>100% Safe with Riot Vanguard &amp; Anti-Cheats</h4>
+          <p>
+            <b>accel.</b> runs on the battle-tested signed kernel driver from the Raw Accel project. It is whitelisted and approved by Riot Vanguard, Easy Anti-Cheat (EAC), BattlEye, and Valve Anti-Cheat (VAC). It operates strictly as a mouse filter driver with zero memory tampering or macro injection.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Logo Showcase Section -->
+  <section class="section" id="logos">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Brand Identity</span>
+        <h2 class="section-title">Logo Concepts for accel.</h2>
+        <p class="section-desc">
+          Click any logo concept below to instantly preview it across the page header and all light/dark themes. Whichever you approve will be set as the default for the app and static pages.
+        </p>
+      </div>
+
+      <div class="logo-grid">
+        <!-- Logo Option 1 -->
+        <div class="logo-card active" data-opt="1">
+          <div class="logo-card-head">
+            <span class="logo-opt-tag">Option 01</span>
+            <span class="logo-card-badge">RECOMMENDED</span>
+          </div>
+          <div class="logo-preview-box">
+            <img src="logos/logo-opt1.svg" alt="Option 1: Kinetic Tangent">
+          </div>
+          <h4 class="logo-card-title">The Kinetic Tangent</h4>
+          <p class="logo-card-desc">
+            A minimalist geometric velocity curve sweeping upward to a precision target coordinate. Communicates speed, mathematical curvature, and tactical focus.
+          </p>
+        </div>
+
+        <!-- Logo Option 2 -->
+        <div class="logo-card" data-opt="2">
+          <div class="logo-card-head">
+            <span class="logo-opt-tag">Option 02</span>
+            <span class="logo-card-badge">TACTICAL</span>
+          </div>
+          <div class="logo-preview-box">
+            <img src="logos/logo-opt2.svg" alt="Option 2: Precision Crosshair Curve">
+          </div>
+          <h4 class="logo-card-title">Precision Crosshair</h4>
+          <p class="logo-card-desc">
+            An emblem featuring an authentic FPS crosshair intersected by an acceleration S-curve. Immediate connection to tactical shooter mechanics.
+          </p>
+        </div>
+
+        <!-- Logo Option 3 -->
+        <div class="logo-card" data-opt="3">
+          <div class="logo-card-head">
+            <span class="logo-opt-tag">Option 03</span>
+            <span class="logo-card-badge">ENGINEERING</span>
+          </div>
+          <div class="logo-preview-box">
+            <img src="logos/logo-opt3.svg" alt="Option 3: Technical Blueprint Titleblock">
+          </div>
+          <h4 class="logo-card-title">Technical Blueprint</h4>
+          <p class="logo-card-desc">
+            An engineering paper titleblock badge with precision registration tick marks and derivative acceleration step <code>dv/dt</code>.
+          </p>
+        </div>
+
+        <!-- Logo Option 4 -->
+        <div class="logo-card" data-opt="4">
+          <div class="logo-card-head">
+            <span class="logo-opt-tag">Option 04</span>
+            <span class="logo-card-badge">MINIMALIST</span>
+          </div>
+          <div class="logo-preview-box">
+            <img src="logos/logo-opt4.svg" alt="Option 4: Velocity Pulse">
+          </div>
+          <h4 class="logo-card-title">Velocity Pulse</h4>
+          <p class="logo-card-desc">
+            An ultra-clean wordmark accented by a kinetic wave and high-visibility red punctuation mark. High contrast across all dark themes.
+          </p>
+        </div>
+      </div>
+
+      <div class="logo-banner" id="selectedLogoNotice">
+        Active Brand Logo: Option 1: Kinetic Tangent (Click cards above to switch)
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid Section -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Architecture</span>
+        <h2 class="section-title">Engineered like a physical instrument</h2>
+        <p class="section-desc">
+          Every detail of <b>accel.</b> has been handcrafted for speed, clarity, and rock-solid reliability.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-num">01 // DESIGN</span>
+          <h3 class="feature-title">14 Handcrafted Themes</h3>
+          <p class="feature-desc">
+            6 light themes (Paper, Ledger, Parchment, Millimeter, Technical, Chalk) and 8 dark themes (Blueprint, Graphite, Phosphor, Obsidian, Midnight, Radar, Cyberpunk, Solarized) with high-contrast elevated dropdowns.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">02 // SENSITIVITY</span>
+          <h3 class="feature-title">Built-in cm/360 Converter</h3>
+          <p class="feature-desc">
+            Instant game conversions for Valorant (0.07 yaw), CS2/Source/Apex (0.022 yaw), Overwatch 2, Fortnite, and Rainbow Six Siege. See your exact 360 distance at rest and at speed.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">03 // COMPARISON</span>
+          <h3 class="feature-title">Pin Reference Baseline Curves</h3>
+          <p class="feature-desc">
+            Freeze your current curve as an orange dashed reference line on the canvas. Tweak parameters and compare your new curve against your baseline in real time.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">04 // TELEMETRY</span>
+          <h3 class="feature-title">Live Speed Histogram</h3>
+          <p class="feature-desc">
+            Real-time hand-speed recording into 100 bins rendered directly beneath the curve. See your actual speed distribution: median, p90, and peak speeds during warmups.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">05 // TABLE MODE</span>
+          <h3 class="feature-title">Direct Canvas LUT Point Dragging</h3>
+          <p class="feature-desc">
+            Manipulate custom lookup tables directly on the plot. Drag points, double-click to insert new velocity nodes, or right-click to delete.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-num">06 // CONNECTIVITY</span>
+          <h3 class="feature-title">30+ Local MCP Tools</h3>
+          <p class="feature-desc">
+            Built-in Model Context Protocol server lets Claude Code, Cursor, VS Code, and Gemini inspect, test, and tune your acceleration curves over local JSON-RPC.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer & Credits -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <h4>accel<span style="color:var(--accent);">.</span></h4>
+          <p style="max-width:380px; margin-bottom:16px;">
+            A modern, high-precision interface for kernel-level mouse acceleration on Windows. Built for competitive tactical FPS players.
+          </p>
+          <div class="footer-credits-note">
+            <b>Open Source Credits:</b> accel. is powered by the signed driver and mathematics of the original
+            <a href="https://github.com/RawAccelOfficial/rawaccel" target="_blank" rel="noopener">Raw Accel</a>
+            project by a1xd, povohat, and contributors. We gratefully credit and thank the Raw Accel team for their foundational work.
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h5>Navigation</h5>
+          <ul class="footer-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#demo">Aim Simulator</a></li>
+            <li><a href="#valorant">Valorant Aim Guide</a></li>
+            <li><a href="#logos">Logo Showcase</a></li>
+            <li><a href="download.html">Download</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Repositories</h5>
+          <ul class="footer-links">
+            <li><a href="https://github.com/jeelnadaa/better-rawaccel" target="_blank" rel="noopener">accel. GitHub Repo</a></li>
+            <li><a href="https://github.com/RawAccelOfficial/rawaccel" target="_blank" rel="noopener">Original Raw Accel</a></li>
+            <li><a href="https://github.com/jeelnadaa/better-rawaccel/blob/main/doc/MCP.md" target="_blank" rel="noopener">MCP AI Guide</a></li>
+            <li><a href="https://github.com/jeelnadaa/better-rawaccel/releases" target="_blank" rel="noopener">Releases &amp; Changelog</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>&copy; 2026 accel. / Better Raw Accel contributors. Released under the MIT License.</span>
+        <span>Hosted on Cloudflare Pages</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

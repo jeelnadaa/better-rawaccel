@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en" data-theme="paper">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download accel. — Windows x64 Release &amp; Quickstart</title>
+  <meta name="description" content="Download the latest release of accel. (Better Raw Accel) for Windows 10/11 x64. Complete with anti-cheat signed kernel driver, 14 themes, and cm/360 converter.">
+
+  <!-- Typefaces: Satoshi & Cabinet Grotesk via Fontshare, IBM Plex Mono for technical data -->
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=cabinet-grotesk@700,800,900&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navigation / Titleblock Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand" aria-label="accel. home">
+        <img src="logos/logo-opt1.svg" alt="accel." class="brand-logo-svg" id="headerLogo">
+        <span class="brand-badge">v2.0</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="index.html#features" class="nav-link">Features</a>
+        <a href="index.html#demo" class="nav-link">Interactive Demo</a>
+        <a href="index.html#valorant" class="nav-link">Valorant Aim Guide</a>
+        <a href="index.html#logos" class="nav-link">Logo Concepts</a>
+        <a href="download.html" class="nav-link active">Download</a>
+      </nav>
+
+      <div class="header-actions">
+        <select class="theme-select" aria-label="Select theme">
+          <option value="paper">Theme: Paper</option>
+          <option value="graphite">Theme: Graphite</option>
+          <option value="blueprint">Theme: Blueprint</option>
+          <option value="obsidian">Theme: Obsidian</option>
+          <option value="cyberpunk">Theme: Cyberpunk</option>
+          <option value="chalk">Theme: Chalk</option>
+        </select>
+        <a href="https://github.com/jeelnadaa/better-rawaccel" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Download Hero Section -->
+  <section class="download-hero">
+    <div class="container">
+      <span class="section-tag">Direct GitHub Release</span>
+      <h1 class="section-title" style="margin-bottom: 24px;">Download accel. for Windows</h1>
+      <p class="section-desc" style="max-width: 640px; margin: 0 auto 40px;">
+        Includes the signed kernel driver, high-performance GUI, bundled offline fonts, cm/360 converter, and automated background updater.
+      </p>
+
+      <!-- Main Download Card -->
+      <div class="download-card-large">
+        <div class="download-card-head">
+          <div>
+            <span class="dl-version-tag">LATEST RELEASE: v2.0.2</span>
+            <span style="font-family:var(--font-mono); font-size:12px; color:var(--ink2); margin-left:12px;">Windows 10 / 11 · 64-bit (x64)</span>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:12px; color:var(--green); font-weight:700;">
+            ● Driver Digitally Signed &amp; Whitelisted
+          </div>
+        </div>
+
+        <div class="download-card-body">
+          <div class="download-btn-row">
+            <a href="https://github.com/jeelnadaa/better-rawaccel/releases/latest/download/BetterRawAccel-win-x64.zip" class="btn btn-accent btn-lg" id="primaryDownloadBtn">
+              Download BetterRawAccel-win-x64.zip
+              <span style="font-family:var(--font-mono); font-size:12px; opacity:0.85;">(~1.4 MB)</span>
+            </a>
+            <a href="https://github.com/jeelnadaa/better-rawaccel/releases/latest" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">
+              View on GitHub Releases ↗
+            </a>
+          </div>
+
+          <!-- SHA-256 Checksum Verification -->
+          <div class="checksum-box">
+            <div>
+              <span style="font-weight:700; color:var(--ink);">SHA-256:</span>
+              <span class="checksum-hash" id="sha256Text">b547849d4ceb8e4e6471e44a49c6cb344840e6080fae4e5eb74f6e1f0eebc853</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="copyHashBtn" onclick="copyChecksum()">Copy Hash</button>
+          </div>
+
+          <!-- 3-Minute Quickstart -->
+          <h4 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">3-Minute Quickstart Setup</h4>
+          <div class="quickstart-steps">
+            <div class="step-box">
+              <div class="step-num">STEP 01</div>
+              <h5>Extract Zip</h5>
+              <p>Extract the downloaded zip archive to any folder (e.g. <code>C:\Games\accel</code>).</p>
+            </div>
+            <div class="step-box">
+              <div class="step-num">STEP 02</div>
+              <h5>Install Driver</h5>
+              <p>Run <code>installer.exe</code> as Administrator. Windows will ask for permission; restart PC if prompted.</p>
+            </div>
+            <div class="step-box">
+              <div class="step-num">STEP 03</div>
+              <h5>Launch &amp; Tune</h5>
+              <p>Launch <code>BetterRawAccel.exe</code>. Choose your mode (Linear, Natural, or Jump) and adjust your cap.</p>
+            </div>
+            <div class="step-box">
+              <div class="step-num">STEP 04</div>
+              <h5>Write &amp; Play</h5>
+              <p>Press <kbd>Ctrl+Enter</kbd> to write to driver. Enable "Apply at logon" in settings to start with Windows.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compatibility & Safety Section -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Security &amp; Hardware</span>
+        <h2 class="section-title">Whitelisted Anti-Cheat Protection</h2>
+        <p class="section-desc">
+          How accel. guarantees safe competitive play without risking bans or input delay.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-num">SAFETY // KERNEL SIGNING</span>
+          <h3 class="feature-title">Official Driver Signature</h3>
+          <p class="feature-desc">
+            The underlying driver is byte-identical to the upstream signed <code>rawaccel.sys</code> driver trusted by thousands of competitive esports players since 2020.
+          </p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">COMPATIBILITY // GAMES</span>
+          <h3 class="feature-title">Whitelisted Games</h3>
+          <p class="feature-desc">
+            100% compliant with Riot Vanguard (Valorant), Easy Anti-Cheat (Apex Legends, Fortnite), BattlEye (Rainbow Six Siege), and Valve Anti-Cheat (CS2).
+          </p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">LATENCY // 0.00 MS</span>
+          <h3 class="feature-title">Zero Input Overhead</h3>
+          <p class="feature-desc">
+            Calculations run inside the kernel filter driver in nanoseconds. The user interface does not intercept your game loop or consume frame rendering budget.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="section" style="background: color-mix(in srgb, var(--desk) 40%, var(--bg));">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Got Questions?</span>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+      </div>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Will I get banned in Valorant by Riot Vanguard?</span>
+            <span class="faq-icon">+</span>
+          </div>
+          <div class="faq-answer">
+            <b>No.</b> Raw Accel has been officially reviewed and whitelisted by Riot Vanguard, Easy Anti-Cheat, and BattlEye. It is a certified kernel-level mouse filter driver that modifies raw input coordinates using pure math. It does not inject into game memory, read screen pixels, or simulate automated macros.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>How is this different from the original Raw Accel GUI?</span>
+            <span class="faq-icon">+</span>
+          </div>
+          <div class="faq-answer">
+            accel. (Better Raw Accel) is a complete modern rewrite. It features 14 engineering themes, a built-in cm/360 and cross-game sensitivity converter, speed histograms, reference curve pinning for A/B testing, interactive LUT point dragging, profile shortcode sharing (<code>RA1:...</code>), and a full Model Context Protocol (MCP) server for AI assistants.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Does accel. need to stay open while I play?</span>
+            <span class="faq-icon">+</span>
+          </div>
+          <div class="faq-answer">
+            <b>No.</b> Once you click "Write to driver" (<kbd>Ctrl+Enter</kbd>), your settings are written directly to the kernel driver. You can close the application completely, and acceleration will remain active in all games. If you check "Start with Windows" in the Driver settings, settings apply at logon automatically without opening the window.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>How do I uninstall if I ever want to revert?</span>
+            <span class="faq-icon">+</span>
+          </div>
+          <div class="faq-answer">
+            Simply run <code>uninstaller.exe</code> (located in the same folder) as Administrator, and restart your PC. Your mouse input will immediately return to standard raw Windows input.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>How do I connect Claude Code, Cursor, or VS Code over MCP?</span>
+            <span class="faq-icon">+</span>
+          </div>
+          <div class="faq-answer">
+            accel. hosts a local HTTP MCP server on port 47700. Simply add <code>{"mcpServers": {"accel": {"url": "http://127.0.0.1:47700/mcp"}}}</code> to your Claude Desktop or Cursor configuration. Read our <a href="https://github.com/jeelnadaa/better-rawaccel/blob/main/doc/MCP.md" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">MCP Connection Guide</a> for complete details.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer & Credits -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <h4>accel<span style="color:var(--accent);">.</span></h4>
+          <p style="max-width:380px; margin-bottom:16px;">
+            A modern, high-precision interface for kernel-level mouse acceleration on Windows. Built for competitive tactical FPS players.
+          </p>
+          <div class="footer-credits-note">
+            <b>Open Source Credits:</b> accel. is powered by the signed driver and mathematics of the original
+            <a href="https://github.com/RawAccelOfficial/rawaccel" target="_blank" rel="noopener">Raw Accel</a>
+            project by a1xd, povohat, and contributors.
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h5>Navigation</h5>
+          <ul class="footer-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="index.html#features">Features</a></li>
+            <li><a href="index.html#demo">Aim Simulator</a></li>
+            <li><a href="index.html#valorant">Valorant Aim Guide</a></li>
+            <li><a href="download.html">Download</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Repositories</h5>
+          <ul class="footer-links">
+            <li><a href="https://github.com/jeelnadaa/better-rawaccel" target="_blank" rel="noopener">accel. GitHub Repo</a></li>
+            <li><a href="https://github.com/RawAccelOfficial/rawaccel" target="_blank" rel="noopener">Original Raw Accel</a></li>
+            <li><a href="https://github.com/jeelnadaa/better-rawaccel/blob/main/doc/MCP.md" target="_blank" rel="noopener">MCP AI Guide</a></li>
+            <li><a href="https://github.com/jeelnadaa/better-rawaccel/releases" target="_blank" rel="noopener">Releases &amp; Changelog</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>&copy; 2026 accel. / Better Raw Accel contributors. Released under the MIT License.</span>
+        <span>Hosted on Cloudflare Pages</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+  <script>
+    function copyChecksum() {
+      const hash = document.getElementById('sha256Text').textContent;
+      navigator.clipboard.writeText(hash).then(() => {
+        const btn = document.getElementById('copyHashBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Hash'; }, 1500);
+      });
+    }
+  </script>
+</body>
+</html>

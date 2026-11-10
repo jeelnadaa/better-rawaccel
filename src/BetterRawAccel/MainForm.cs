@@ -31,6 +31,8 @@ namespace BetterRawAccel
         bool webReady;
         bool restartAfterUpdate;
         double accDistance;
+        Dictionary<IntPtr, bool> liveHandles = new Dictionary<IntPtr, bool>();
+        bool liveDirty = true;
         double lastOut, lastIn, peakIn;
         long peakAt;
         bool lastSentZero = true;
@@ -196,6 +198,7 @@ namespace BetterRawAccel
 
         void PushState(string source, string tool)
         {
+            liveDirty = true;
             Post(new JObject { ["event"] = "state", ["state"] = api.FullState(), ["source"] = source, ["tool"] = tool });
         }
 
@@ -220,6 +223,7 @@ namespace BetterRawAccel
                 reply["result"] = await api.Call(method, args);
                 if (tool.Mutates)
                 {
+                    liveDirty = true;
                     bool lite = (method == "update_profile" && args["patch"]?["name"] == null) || method == "set_mode";
                     reply["state"] = lite ? engine.UiState(true) : api.FullState();
                 }
@@ -392,7 +396,7 @@ namespace BetterRawAccel
             {
                 uint size = (uint)Marshal.SizeOf(typeof(RAWINPUT));
                 uint got = GetRawInputData(m.LParam, RID_INPUT, out var ri, ref size, (uint)Marshal.SizeOf(typeof(RAWINPUTHEADER)));
-                if (got != uint.MaxValue && ri.Header.Type == RIM_TYPEMOUSE && (ri.Mouse.Flags & MOUSE_MOVE_ABSOLUTE) == 0)
+                if (got != uint.MaxValue && ri.Header.Type == RIM_TYPEMOUSE && (ri.Mouse.Flags & MOUSE_MOVE_ABSOLUTE) == 0 && Listens(ri.Header.Device))
                 {
                     double x = ri.Mouse.LastX, y = ri.Mouse.LastY;
                     if (x != 0 || y != 0) accDistance += Math.Sqrt(x * x + y * y);
@@ -400,9 +404,46 @@ namespace BetterRawAccel
             }
             else if (m.Msg == WM_INPUT_DEVICE_CHANGE && webReady)
             {
+                liveDirty = true;
                 Post(new JObject { ["event"] = "devices", ["devices"] = engine.Devices() });
             }
             base.WndProc(ref m);
+        }
+
+        /// <summary>
+        /// Whether a mouse should move the live marker. A mouse the driver leaves alone, or one that is on a
+        /// different profile than the one being plotted, would put the marker in the wrong place.
+        /// (DPI normalisation needs no handling here: with it, measured output speed still maps back through
+        /// the same curve, and the result is already in the curve's own speed unit.)
+        /// </summary>
+        bool Listens(IntPtr device)
+        {
+            if (liveDirty)
+            {
+                liveDirty = false;
+                try
+                {
+                    var cfg = engine.Active;
+                    var names = new HashSet<string>(cfg.profiles.Select(p => p.name));
+                    string first = cfg.profiles[0].name;
+                    string plotted = (engine.DriverTwin() ?? cfg.profiles[0]).name;
+                    var map = new Dictionary<IntPtr, bool>();
+                    foreach (var dev in MultiHandleDevice.GetList())
+                    {
+                        var own = cfg.devices.Find(d => d.id == dev.id);
+                        bool disabled = own != null ? own.config.disable : cfg.defaultDeviceConfig.disable;
+                        string prof = own == null || string.IsNullOrEmpty(own.profile) || !names.Contains(own.profile) ? first : own.profile;
+                        foreach (var h in dev.handles) map[h] = !disabled && prof == plotted;
+                    }
+                    liveHandles = map;
+                }
+                catch (Exception e)
+                {
+                    Log.Error("live devices", e);
+                }
+            }
+            // Unknown handles (injected input, devices that appeared a moment ago) are counted rather than dropped.
+            return !liveHandles.TryGetValue(device, out bool on) || on;
         }
 
         /// <summary>Turns the distance moved since the last tick into a speed and sends it to the plot.</summary>

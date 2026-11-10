@@ -52,10 +52,10 @@ jobs:
           Get-ChildItem $stage -Recurse -Include *.pdb, settings.json, Microsoft.Web.WebView2.Wpf.dll | Remove-Item -Force
           Copy-Item README.md, LICENSE, CHECKLIST.md $stage
           New-Item -ItemType Directory -Force "$stage/doc" | Out-Null
-          Copy-Item doc/Guide.md, doc/FAQ.md "$stage/doc"
+          Copy-Item doc/Guide.md, doc/FAQ.md, doc/MCP.md "$stage/doc"
 
           # The driver, its installer and the app must all be in the zip, so nobody needs another download.
-          foreach ($f in "BetterRawAccel.exe", "wrapper.dll", "installer.exe", "uninstaller.exe", "writer.exe", "driver/rawaccel.sys", "ui/index.html") {
+          foreach ($f in "BetterRawAccel.exe", "wrapper.dll", "installer.exe", "uninstaller.exe", "writer.exe", "driver/rawaccel.sys", "ui/index.html", "ui/fonts/archivo-latin-standard-normal.woff2") {
             if (-not (Test-Path "$stage/$f")) { throw "missing from package: $f" }
           }
 

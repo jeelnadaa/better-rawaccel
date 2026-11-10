@@ -36,7 +36,8 @@ It replaces Raw Accel's `rawaccel.exe` GUI and nothing else.
 
 - [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) — renders the interface
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) — MIT License
-- Typefaces, loaded from their foundries' servers at run time and not redistributed with the app:
-  - Satoshi and Cabinet Grotesk — Indian Type Foundry, via Fontshare (ITF Free Font License)
-  - Archivo — Omnibus-Type (SIL Open Font License 1.1)
-  - IBM Plex Mono — IBM (SIL Open Font License 1.1)
+- Typefaces bundled in `src/BetterRawAccel/ui/fonts`, with their licence texts next to them:
+  - Archivo — The Archivo Project Authors / Omnibus-Type (SIL Open Font License 1.1)
+  - IBM Plex Mono — IBM Corp. (SIL Open Font License 1.1)
+- Typefaces loaded from Fontshare at run time and **not** redistributed with the app:
+  - Satoshi and Cabinet Grotesk — Indian Type Foundry (ITF Free Font License)

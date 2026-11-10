@@ -45,22 +45,23 @@ Checks were made by driving the running app through its MCP server and reading w
 - [~] Apply at Windows sign-in using the bundled `writer.exe` — not tried, it would add a shortcut to the Startup folder
 - [x] Peak-speed hold
 - [x] Table (lookup) mode editor, with values as sensitivity or output speed
-- [ ] Gain and velocity plots (the original had these as extra charts)
-- [ ] Offline fonts (bundle the OFL faces; Fontshare faces stay online-only for licence reasons)
-- [ ] Live marker that respects per-device DPI normalisation and disabled devices
+- [x] Velocity and gain plots, switched at the top right of the plot or with `set_app_settings`
+- [x] Offline fonts: Archivo and IBM Plex Mono are bundled; Satoshi and Cabinet Grotesk stay online-only for licence reasons and fall back to Archivo
+- [~] Live marker ignores mice the driver leaves alone and mice on another profile; DPI normalisation needs no special handling — the marker still works for the normal case, but the left-alone and other-profile cases were not set up and tried
 
 ## MCP (inside the running app, not headless)
 - [x] HTTP MCP server on 127.0.0.1 hosted by the GUI process; every change shows in the window
 - [x] Requests with a foreign `Origin` are refused (checked: 403); on/off switch and port in the Driver sheet
 - [x] 30 tools covering everything the UI can do, including `capture_window` and `show_panel`
+- [x] Connection guide for Claude Code, Claude Desktop, Cursor, VS Code, Gemini CLI: `doc/MCP.md` (the Claude Desktop bridge and the non-Claude configs are documented but were not tried)
 - [x] Keeps the driver's 1-second write delay (a write takes about 2 s end to end)
 - [~] Turning the server off and changing its port from the sheet — not tried
 
 ## Releases and updates
-- [~] GitHub Actions workflow: every push to `main` builds and publishes a release zip — written, never run (nothing is pushed yet)
-- [~] Zip includes the driver, installer, uninstaller and writer; the workflow fails if any is missing
-- [~] NuGet cache in the workflow
-- [~] SHA-256 file published next to the zip
+- [x] GitHub Actions workflow: every push to `main` builds and publishes a release zip (v2.0.1 was published this way)
+- [x] Zip includes the driver, installer, uninstaller and writer; the driver in the v2.0.1 zip is byte-identical to upstream's signed file
+- [~] NuGet cache in the workflow — the first run saved it; a cache hit on a later run has not been looked at
+- [x] SHA-256 file published next to the zip, and it matches
 - [~] In-app updater — the check runs and handles "no releases yet"; download, hash check and file swap can only be tried once a release exists
 
 ## Repo
@@ -68,4 +69,15 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] `CREDITS.md` and `LICENSE` crediting Raw Accel and its authors (MIT)
 - [x] `.gitignore` keeps personal files and the upstream clone out
 - [x] First commit
-- [ ] Push to GitHub (waits for the owner's go-ahead; the first push publishes the first release)
+- [x] Pushed; release v2.0.1 is public
+
+## Ideas, not started
+- [ ] Per-game profiles: switch profile when a chosen game is in the foreground
+- [ ] Tray icon and global hotkeys for switching profiles
+- [ ] Speed histogram under the curve: where your hand actually spends its time
+- [ ] Draw the table curve by dragging points on the plot
+- [ ] Pin a reference curve, or overlay two profiles, to compare
+- [ ] cm/360 and sensitivity converter
+- [ ] Share a profile as a short code, and export the plot as an image
+- [ ] Automated tests for the engine, run in the workflow
+- [ ] ARM64 build, code-signed releases, winget package

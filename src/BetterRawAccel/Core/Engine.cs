@@ -546,6 +546,7 @@ namespace BetterRawAccel.Core
             ["plotDpi"] = App.PlotDpi,
             ["plotPollRate"] = App.PlotPollRate,
             ["helpSeen"] = App.HelpSeen,
+            ["plotView"] = App.PlotView,
         };
 
         /// <summary>Compact summary for MCP clients: no curve arrays, no metadata.</summary>

@@ -58,6 +58,7 @@ const TIPS = {
   sens:    ["Sensitivity", "The multiplier the edited curve gives at the live hand speed: the y value under the marker."],
   out:     ["Output speed", "Hand speed × sensitivity: what the cursor would receive with the curve you are editing."],
   peak:    ["Peak hold", "Fastest hand speed in the last 3 seconds, also marked ▲ on the x axis. Flick, then check where the flick landed on the curve."],
+  view:    ["Plot", "Sensitivity is output speed ÷ hand speed. Velocity is the output speed itself, against the dashed 1:1 line. Gain is the slope of velocity: how much output one more count of hand speed adds."],
   legend:  ["Curves", "Solid accent: what you are editing. Dashed: what the driver has now. Solid ink: the Y axis curve when X and Y are apart."],
   theme:   ["Sheet", "Colour theme. Remembered on this machine."],
   font:    ["Type", "Interface typeface. Numbers always stay in IBM Plex Mono."],
@@ -378,6 +379,7 @@ function render(full) {
     root.style.setProperty("--wd", ((S.app.writeDelayMs || 1000) + 60) + "ms");
     if (S.settings.theme !== root.dataset.theme) setTheme(S.settings.theme, true, false);
     if (S.settings.font !== root.dataset.font) setFont(S.settings.font, false);
+    if (S.settings.plotView && S.settings.plotView !== view) setView(S.settings.plotView, false);
     helpBtn.classList.toggle("new", !S.settings.helpSeen);
     refreshSheet();
   }
@@ -479,7 +481,7 @@ function onEvent(m) {
 
 // ---------- callout tooltips ----------
 const tip = $("tip"), lead = $("lead"), PREF = { mode: "right", label: "right", value: "right", ruler: "right", write: "right", status: "right", undo: "right", revert: "right", axis: "right",
-  in: "top", sens: "top", out: "top", peak: "top", legend: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom", profile: "bottom", device: "bottom" };
+  in: "top", sens: "top", out: "top", peak: "top", legend: "top", view: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom", profile: "bottom", device: "bottom" };
 const TIP_NO = Object.fromEntries(Object.keys(TIPS).map((k, i) => [k, String(i + 1).padStart(2, "0")]));
 let tipEl = null, tipTimer = 0, hideTimer = 0;
 function showTip(el) {
@@ -686,6 +688,7 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
       ${m.error ? `<p style="color:var(--pen)">${esc(m.error)}</p>` : ""}
       <div class="row"><span class="code" id="mcpUrl">${esc(m.url || "")}</span><button class="bt q" data-copy="mcpUrl">Copy</button></div>
       <div class="row"><span class="code" id="mcpCmd">${esc(cmd)}</span><button class="bt q" data-copy="mcpCmd">Copy</button></div>
+      <p><a class="lk" data-url="https://github.com/${esc(a.repo)}/blob/main/doc/MCP.md">How to connect Claude, Cursor, VS Code and other tools</a></p>
       <p>Only reachable from this computer. Edits made over MCP show up here live and reach the driver only on a write. ${m.calls ? `Last call: ${esc(m.lastTool)} at ${esc(m.lastCall)} · ${m.calls} in total.` : "No calls yet."}</p></div>
     <div class="grp"><span class="k">Updates</span>
       <div class="row"><span>Version ${esc(a.version)}${a.dev ? " (local build)" : ""}</span><span class="tag ${u.state === "ready" || u.state === "available" || u.state === "error" ? "p" : ""}">${esc(u.latest && (u.state === "available" || u.state === "ready") ? u.latest + " " : "")}${esc(UPDATE_TEXT[u.state] || "")}</span>
@@ -792,10 +795,31 @@ const crisp = v => Math.round(v) + .5;
 const sIn = $("sIn"), sSens = $("sSens"), sOut = $("sOut"), sPk = $("sPk");
 const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
 const NICE = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
-const YSTEPS = [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+const YSTEPS = [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const num = v => String(+v.toFixed(2));
 
 let yMax = 3, ghostA = 0, yA = 0, prev = performance.now();
+
+// Plot views. The host sends sensitivity; velocity and gain are derived from it:
+// velocity = speed × sensitivity, gain = slope of velocity.
+const VIEWS = { sens: { title: "SENSITIVITY", unit: "×", dec: 2 }, vel: { title: "OUTPUT SPEED", unit: "counts/ms", dec: 1 }, gain: { title: "GAIN", unit: "×", dec: 2 } };
+let view = VIEWS[store.get("ra.view")] ? store.get("ra.view") : "sens";
+const vShown = new Float32Array(N), vShownY = new Float32Array(N), vDriver = new Float32Array(N), vTarget = new Float32Array(N), vTargetY = new Float32Array(N);
+function toView(src, dst) {
+  const dv = maxX / (N - 1);
+  if (view === "sens") { dst.set(src); return; }
+  if (view === "vel") { for (let i = 0; i < N; i++) dst[i] = i * dv * src[i]; return; }
+  for (let i = 0; i < N; i++) { const a = Math.max(i - 1, 0), b = Math.min(i + 1, N - 1); dst[i] = (b * src[b] - a * src[a]) / (b - a); }
+}
+const base = x => view === "vel" ? x : 1;      // the "no acceleration" reference in each view
+function setView(v, persist) {
+  view = v; store.set("ra.view", v);
+  $("docT").textContent = { sens: "Sensitivity curve", vel: "Velocity curve", gain: "Gain curve" }[v];
+  if (persist) rpc("set_app_settings", { plotView: v }).catch(fail);
+  $("viewSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v));
+}
+$("viewSeg").querySelectorAll("button").forEach(b => b.onclick = () => setView(b.dataset.v, true));
+setView(view, false);
 function tag(text, x, y, align) {
   g.font = `500 10.5px ${MONO}`;
   const w = Math.ceil(g.measureText(text).width) + 10, h = 17;
@@ -816,7 +840,6 @@ function step(now) {
   }
 
   // Spring each point toward its target: this is what makes the curve morph and settle.
-  let mx = 1.2;
   for (let i = 0; i < N; i++) {
     if (still) { shown[i] = target[i]; vel[i] = 0; shownY[i] = targetY[i]; velY[i] = 0; }
     else {
@@ -824,12 +847,16 @@ function step(now) {
       vel[i] += ((target[i] - shown[i]) * 170 / delay - vel[i] * 19) * dt; shown[i] += vel[i] * dt;
       if (hasY || yA > 0.01) { velY[i] += ((targetY[i] - shownY[i]) * 170 / delay - velY[i] * 19) * dt; shownY[i] += velY[i] * dt; }
     }
-    if (i < 5) continue;   // the first few samples can spike toward infinity (table values near zero speed); they must not set the scale
-    if (target[i] > mx) mx = target[i];
-    if (hasY && targetY[i] > mx) mx = targetY[i];
-    if (ghostOn && inDriver[i] > mx) mx = inDriver[i];
   }
-  const yGoal = Math.min(mx, 1e4) * 1.15;
+  toView(shown, vShown); toView(target, vTarget); toView(inDriver, vDriver);
+  if (hasY || yA > 0.01) { toView(shownY, vShownY); toView(targetY, vTargetY); }
+  let mx = view === "vel" ? maxX : 1.2;
+  for (let i = 5; i < N; i++) {   // the first few samples can spike toward infinity (table values near zero speed); they must not set the scale
+    if (vTarget[i] > mx) mx = vTarget[i];
+    if (hasY && vTargetY[i] > mx) mx = vTargetY[i];
+    if (ghostOn && vDriver[i] > mx) mx = vDriver[i];
+  }
+  const yGoal = Math.min(mx, 1e5) * (view === "vel" ? 1.08 : 1.15);
   yMax = still ? yGoal : yMax + (yGoal - yMax) * Math.min(1, dt * 5);
   ghostA = still ? (ghostOn ? 1 : 0) : ghostA + ((ghostOn ? 1 : 0) - ghostA) * Math.min(1, dt * 8);
   yA = still ? (hasY ? 1 : 0) : yA + ((hasY ? 1 : 0) - yA) * Math.min(1, dt * 8);
@@ -849,7 +876,7 @@ function step(now) {
   // Grid: minor / major hierarchy, spacing adapts to the plot size and the speed range.
   const xMaj = NICE.find(s => maxX / s <= 10) || 5000;
   const xMinor = pw / (maxX / (xMaj / 5)) >= 7 ? xMaj / 5 : xMaj / 2;
-  const yMaj = YSTEPS.find(s => ph / (yMax / s) >= 40) || 500;
+  const yMaj = YSTEPS.find(s => ph / (yMax / s) >= 40) || 20000;
   const yMin = ph / (yMax / yMaj) / 5 >= 7 ? yMaj / 5 : yMaj / 2;
   const isMaj = (v, s) => Math.abs(v / s - Math.round(v / s)) < 1e-6;
   g.lineWidth = 1;
@@ -866,23 +893,24 @@ function step(now) {
   // Curve region (clipped to plot).
   g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
   const path = arr => { g.beginPath(); for (let i = 0; i < N; i++) { const x = X(i / (N - 1) * maxX), y = Y(arr[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); } };
-  path(shown); g.lineTo(X(maxX), Y(1)); g.lineTo(X(0), Y(1)); g.closePath();
+  path(vShown); g.lineTo(X(maxX), Y(base(maxX))); g.lineTo(X(0), Y(base(0))); g.closePath();
   g.fillStyle = hatch; g.fill();
-  g.setLineDash([4, 4]); g.strokeStyle = col(C.ink, .55); g.beginPath(); g.moveTo(L, crisp(Y(1))); g.lineTo(L + pw, crisp(Y(1))); g.stroke();
-  g.setLineDash([]);
+  g.setLineDash([4, 4]); g.strokeStyle = col(C.ink, .55); g.beginPath();
+  if (view === "vel") { g.moveTo(X(0), Y(0)); g.lineTo(X(maxX), Y(maxX)); } else { g.moveTo(L, crisp(Y(1))); g.lineTo(L + pw, crisp(Y(1))); }
+  g.stroke(); g.setLineDash([]);
   if (ghostA > 0.01) {
-    g.globalAlpha = ghostA; g.setLineDash([6, 4]); g.lineWidth = 1.5; g.strokeStyle = col(C.ink2); path(inDriver); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    g.globalAlpha = ghostA; g.setLineDash([6, 4]); g.lineWidth = 1.5; g.strokeStyle = col(C.ink2); path(vDriver); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
   }
   g.lineJoin = "round"; g.lineCap = "round";
-  if (yA > 0.01) { g.globalAlpha = yA; g.lineWidth = 1.75; g.strokeStyle = col(C.ink); path(shownY); g.stroke(); g.globalAlpha = 1; }
-  g.lineWidth = 2.25; g.strokeStyle = col(C.pen); path(shown); g.stroke();
+  if (yA > 0.01) { g.globalAlpha = yA; g.lineWidth = 1.75; g.strokeStyle = col(C.ink); path(vShownY); g.stroke(); g.globalAlpha = 1; }
+  g.lineWidth = 2.25; g.strokeStyle = col(C.pen); path(vShown); g.stroke();
   // write confirmation: the pen re-traces the curve left to right
   if (sweepT >= 0) {
     sweepT += dt;
     const prog = Math.min(1, sweepT / 0.55), a = sweepT < 0.55 ? 1 : Math.max(0, 1 - (sweepT - 0.55) / 0.45);
     const ie = Math.max(1, Math.round(prog * (N - 1)));
     g.globalAlpha = a; g.lineWidth = 3.5; g.strokeStyle = col(C.ink); g.beginPath();
-    for (let i = 0; i <= ie; i++) { const x = X(i / (N - 1) * maxX), y = Y(shown[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    for (let i = 0; i <= ie; i++) { const x = X(i / (N - 1) * maxX), y = Y(vShown[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); }
     g.stroke();
     if (prog < 1) { g.lineWidth = 1; g.strokeStyle = col(C.ink, .35); const sx = crisp(X(prog * maxX)); g.beginPath(); g.moveTo(sx, T); g.lineTo(sx, bottom); g.stroke(); }
     g.globalAlpha = 1;
@@ -905,18 +933,21 @@ function step(now) {
   g.textAlign = "right"; g.fillText("INPUT SPEED", L + pw - 64, bottom + 38);
   g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "left"; g.fillText("counts/ms", L + pw - 58, bottom + 38);
   g.save(); g.translate(16, T); g.rotate(-Math.PI / 2);
-  g.font = `700 10px ${UIF}`; g.fillStyle = col(C.ink); g.letterSpacing = "1.4px"; g.textAlign = "right"; g.fillText("SENSITIVITY", -14, 0);
-  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "right"; g.fillText("×", 0, 0);
+  const V = VIEWS[view];
+  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "right"; g.fillText(V.unit, 0, 0);
+  const uw = g.measureText(V.unit).width;
+  g.font = `700 10px ${UIF}`; g.fillStyle = col(C.ink); g.letterSpacing = "1.4px"; g.fillText(V.title, -(uw + 7), 0);
+  g.letterSpacing = "0px";
   g.restore();
 
   // Live marker: persistence trail, crosshair to both axes, axis readout tags.
   const shownSpeed = Math.min(speed, maxX);
-  const sens = sample(shown, shownSpeed);
-  if (speed > 0.05) trail.push([shownSpeed, sens, now]);
+  const sens = sample(shown, shownSpeed), mark = sample(vShown, shownSpeed);
+  if (speed > 0.05) trail.push([shownSpeed, mark, now]);
   while (trail.length && now - trail[0][2] > 1200) trail.shift();
   g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
   for (const [sx, sy, t] of trail) { g.fillStyle = col(C.ink, (1 - (now - t) / 1200) * .45); g.fillRect(X(sx) - 1, Y(sy) - 1, 2, 2); }
-  const dx = X(shownSpeed), dy = clamp(Y(sens), T, bottom);
+  const dx = X(shownSpeed), dy = clamp(Y(mark), T, bottom);
   g.strokeStyle = col(C.ink, .6); g.lineWidth = 1; g.setLineDash([2, 3]); g.beginPath();
   g.moveTo(crisp(dx), dy); g.lineTo(crisp(dx), bottom); g.moveTo(dx, crisp(dy)); g.lineTo(L, crisp(dy)); g.stroke(); g.setLineDash([]);
   g.restore();
@@ -929,7 +960,7 @@ function step(now) {
   g.font = `500 10.5px ${MONO}`;
   const xt = speed.toFixed(1), xw = g.measureText(xt).width + 10;
   tag(xt, clamp(dx, L + xw / 2, L + pw - xw / 2), bottom + 4, "c");
-  tag(sens.toFixed(2), L - 4, clamp(dy, T + 8, bottom - 8), "r");
+  tag(mark.toFixed(V.dec), L - 4, clamp(dy, T + 8, bottom - 8), "r");
 
   setText(sIn, speed.toFixed(1)); setText(sSens, sens.toFixed(2)); setText(sOut, (speed * sens).toFixed(1)); setText(sPk, peak.toFixed(1));
 }

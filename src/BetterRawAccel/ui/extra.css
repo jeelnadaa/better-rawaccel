@@ -111,3 +111,15 @@ a.lk:hover { text-decoration-color: var(--pen); }
 .led.mcp { animation: tx .35s steps(1) 2; }
 .boot { position: fixed; inset: 0; display: grid; place-items: center; font: 400 12px var(--mono); color: var(--ink2); background: var(--desk); z-index: 99; padding: 40px; text-align: center; }
 .boot.off { display: none; }
+
+/* bundled open-licence faces (SIL OFL 1.1): the app works with no network */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url("fonts/archivo-latin-standard-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2"); }
+
+/* plot view switch (sensitivity / velocity / gain); the legend moves down to make room */
+.views { position: absolute; right: 20px; top: 5px; background: var(--sheet); }
+.plot .legend { top: auto; bottom: 58px; right: 28px; padding: 3px 8px; background: var(--sheet); border: 1px solid var(--rule2); }
+.plot .anno { right: 250px; }
+@media (max-width: 900px) { .views button { padding-left: 6px; padding-right: 6px; } .plot .anno span { display: none; } }

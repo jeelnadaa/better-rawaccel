@@ -276,12 +276,12 @@ namespace BetterRawAccel.Core
 
             Add("get_app_settings", "Window preferences: theme, typeface, plot scale, updates, start-up, MCP.", null, false, a => AppSettingsDto());
 
-            Add("set_app_settings", "Change window preferences. Themes: paper, ledger, blueprint, graphite, phosphor. Fonts: satoshi, cabinet, archivo.",
+            Add("set_app_settings", "Change window preferences, including which plot is shown (plotView). Themes: paper, ledger, blueprint, graphite, phosphor. Fonts: satoshi, cabinet, archivo.",
                 S("{'type':'object','properties':{'theme':{'type':'string','enum':['paper','ledger','blueprint','graphite','phosphor']},'font':{'type':'string','enum':['satoshi','cabinet','archivo']}," +
                   "'plotDpi':{'type':'integer','description':'mouse DPI; only sets the plot x range (DPI x 0.05 counts/ms)'},'plotPollRate':{'type':'integer'}," +
                   "'autoUpdate':{'type':'boolean'},'applyOnStart':{'type':'boolean','description':'write settings.json to the driver when the app starts'}," +
                   "'startWithWindows':{'type':'boolean','description':'apply settings at logon using the bundled writer.exe'}," +
-                  "'mcpEnabled':{'type':'boolean'},'mcpPort':{'type':'integer'},'helpSeen':{'type':'boolean'}}}"),
+                  "'plotView':{'type':'string','enum':['sens','vel','gain'],'description':'what the plot shows: sensitivity, output velocity, or gain'},'mcpEnabled':{'type':'boolean'},'mcpPort':{'type':'integer'},'helpSeen':{'type':'boolean'}}}"),
                 true, a =>
                 {
                     SetAppSettings(a);
@@ -375,6 +375,9 @@ namespace BetterRawAccel.Core
                     case "autoUpdate": s.AutoUpdate = (bool)v; break;
                     case "applyOnStart": s.ApplyOnStart = (bool)v; break;
                     case "helpSeen": s.HelpSeen = (bool)v; break;
+                    case "plotView":
+                        if ((string)v != "sens" && (string)v != "vel" && (string)v != "gain") throw new InvalidOperationException("plotView must be sens, vel or gain");
+                        s.PlotView = (string)v; break;
                     case "mcpEnabled": s.McpEnabled = (bool)v; break;
                     case "mcpPort":
                         if ((int)v < 1024 || (int)v > 65535) throw new InvalidOperationException("mcpPort must be between 1024 and 65535");

@@ -22,7 +22,7 @@ Requirements: Windows 10 or 11, 64-bit, and the [WebView2 Runtime](https://devel
 
 - **Mode tiles** — eight modes on one shared scale. Keys `1`–`8`. Each mode keeps its own values.
 - **Parameters** — type an exact value, drag the ruler, or drag the parameter's name. `Shift` is fine control; double-click resets.
-- **Plot** — the solid curve is what you are editing, computed by the driver's own code. The dashed curve is what the driver has now.
+- **Plot** — the solid curve is what you are editing, computed by the driver's own code. The dashed curve is what the driver has now. Switch between sensitivity, velocity and gain at the top right.
 - **Write to driver** — button or `Ctrl`+`Enter`. The driver waits one second before using new settings (Raw Accel's anti-abuse delay, kept as is).
 - **Undo / redo** — `Ctrl`+`Z`, `Ctrl`+`Y`.
 - **Title block** — Profile, Device, Driver (start-up, MCP, updates, import/export), Sheet (theme), Type (typeface).
@@ -44,6 +44,8 @@ Claude Code:
 claude mcp add --transport http rawaccel http://127.0.0.1:47700/mcp
 ```
 
+Claude Desktop, Cursor, VS Code, Gemini CLI and others: see **[doc/MCP.md](doc/MCP.md)** for the config of each, a connection test, example prompts and troubleshooting.
+
 Tools:
 
 | Area | Tools |
@@ -54,7 +56,7 @@ Tools:
 | Profiles | `list_profiles`, `select_profile`, `create_profile`, `rename_profile`, `delete_profile` |
 | Devices | `list_devices`, `set_device`, `set_default_device`, `remove_device` |
 | Files | `export_settings`, `import_settings` |
-| App | `get_app_settings`, `set_app_settings`, `show_panel`, `check_for_updates`, `install_update` |
+| App | `get_app_settings`, `set_app_settings` (theme, typeface, plot view), `show_panel`, `check_for_updates`, `install_update` |
 
 Safety: the server listens on the loopback address only and refuses requests whose `Host` or `Origin` is not local. Any program on your PC can already talk to the Raw Accel driver directly, so MCP adds convenience, not privilege. Turn it off under **Driver** if you do not use it.
 
@@ -89,7 +91,7 @@ Layout:
 ## Notes
 
 - **Anti-cheat:** this ships the same signed driver as Raw Accel. Raw Accel's own statement on anti-cheat applies; this project changes nothing about how input is modified.
-- **Fonts:** the typefaces are loaded from Fontshare and Google Fonts and cached; they are not bundled. Offline, the interface falls back to Arial and Consolas.
+- **Fonts:** Archivo and IBM Plex Mono are bundled (SIL Open Font License), so the app works offline. Satoshi and Cabinet Grotesk are loaded from Fontshare and cached, not bundled, because their licence does not clearly allow redistribution; offline and uncached they fall back to Archivo.
 - **Settings:** `settings.json` sits next to the exe in Raw Accel's own format, so it works with `writer.exe` and can be exchanged with the original GUI.
 
 ## Licence

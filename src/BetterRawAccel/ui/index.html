@@ -6,15 +6,13 @@
 <title>Better Raw Accel</title>
 <!--
   Type: Satoshi + Cabinet Grotesk (Fontshare, ITF Free Font License) and Archivo + IBM Plex Mono (SIL OFL 1.1).
-  The faces are loaded from their foundries' servers and cached by WebView2; they are not redistributed with the app.
-  Offline, the interface falls back to Arial and Consolas.
+  Archivo and IBM Plex Mono are bundled in ui/fonts (their licence allows it), so the app is fully usable offline.
+  Satoshi and Cabinet Grotesk are loaded from Fontshare and cached by WebView2; they are not redistributed.
+  Offline and uncached, those two fall back to Archivo.
 -->
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=cabinet-grotesk@400,500,700,800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script>
   // Restore theme/font before first paint so there is no flash.
   try {
@@ -34,7 +32,7 @@
       <button class="help" id="helpBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="help"><b>?</b><span>How to use</span></button>
     </div>
     <div class="tb">
-      <div class="doc">Sensitivity curve <small id="rev"></small></div>
+      <div class="doc"><span id="docT">Sensitivity curve</span> <small id="rev"></small></div>
       <button class="cell" id="profBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="profile"><span class="k">Profile</span><span class="v" id="profV">default</span></button>
       <button class="cell" id="devBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="device"><span class="k">Device</span><span class="v" id="devV"></span></button>
       <button class="cell" id="sysBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="driver"><span class="k">Driver</span><span class="v"><span class="led" id="led"></span><span id="drvV">connected</span></span></button>
@@ -77,6 +75,7 @@
     <div class="plot" id="plot">
       <canvas id="cv"></canvas>
       <div class="anno" id="anno"><b></b><span></span></div>
+      <div class="seg views" id="viewSeg" data-tip="view"><button data-v="sens">Sensitivity</button><button data-v="vel">Velocity</button><button data-v="gain">Gain</button></div>
       <div class="legend" id="legend" tabindex="0" data-tip="legend">
         <span data-l="edit"><i></i>editing</span><span data-l="y"><i class="y"></i>Y axis</span><span data-l="drv"><i class="d"></i>in driver</span>
       </div>

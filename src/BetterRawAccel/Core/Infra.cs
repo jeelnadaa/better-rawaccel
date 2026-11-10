@@ -97,6 +97,8 @@ namespace BetterRawAccel.Core
         public int PlotDpi = 1600;
         public int PlotPollRate = 1000;
         public bool HelpSeen = false;
+        /// <summary>sens, vel or gain.</summary>
+        public string PlotView = "sens";
         public int[] Window;          // x, y, width, height
         public bool Maximized = false;
 
@@ -124,6 +126,7 @@ namespace BetterRawAccel.Core
             if (PlotPollRate < 125 || PlotPollRate > 8000) PlotPollRate = 1000;
             if (string.IsNullOrWhiteSpace(Theme)) Theme = "paper";
             if (string.IsNullOrWhiteSpace(Font)) Font = "satoshi";
+            if (PlotView != "vel" && PlotView != "gain") PlotView = "sens";
             return this;
         }
 

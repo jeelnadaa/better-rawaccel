@@ -358,6 +358,19 @@ namespace BetterRawAccel.Tests
                 Assert.AreEqual("top-left", overlay.PositionMode);
                 overlay.Reposition("bottom-right");
                 Assert.AreEqual("bottom-right", overlay.PositionMode);
+
+                // Test Movable vs Fixed properties
+                Assert.IsFalse(overlay.IsMovable);
+                overlay.SetMovable(true);
+                Assert.IsTrue(overlay.IsMovable);
+                overlay.SetMovable(false);
+                Assert.IsFalse(overlay.IsMovable);
+
+                // Test Custom Position
+                overlay.Reposition("custom", 120, 240);
+                Assert.AreEqual("custom", overlay.PositionMode);
+                Assert.AreEqual(120, overlay.Location.X);
+                Assert.AreEqual(240, overlay.Location.Y);
             }
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using BetterRawAccel.Core;
 
@@ -8,7 +9,7 @@ namespace BetterRawAccel
 {
     /// <summary>
     /// Lightweight, non-intrusive in-game HUD overlay.
-    /// Uses WS_EX_TRANSPARENT, WS_EX_NOACTIVATE, and WS_EX_LAYERED.
+    /// Supports Fixed (WS_EX_TRANSPARENT click-through) and Movable (interactive drag) modes.
     /// Completely external and 100% safe with Riot Vanguard, Easy Anti-Cheat, and BattlEye.
     /// </summary>
     public sealed class OverlayForm : Form
@@ -19,9 +20,17 @@ namespace BetterRawAccel
         const int WS_EX_LAYERED = 0x00080000;
         const int WS_EX_NOACTIVATE = 0x08000000;
 
+        const int GWL_EXSTYLE = -20;
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
+        static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
+        static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
         readonly Timer fadeTimer = new Timer();
         DateTime showUntil = DateTime.MinValue;
-        float targetOpacity = 0.92f;
+        float targetOpacity = 0.94f;
         float currentOpacity = 0.0f;
 
         public string ProfileName { get; private set; } = "default";
@@ -30,8 +39,18 @@ namespace BetterRawAccel
         public string SensValue { get; private set; } = "1.00×";
         public string Cm360Value { get; private set; } = "~52 cm";
         public string PositionMode { get; private set; } = "top-right";
+        public int CustomX { get; private set; } = -1;
+        public int CustomY { get; private set; } = -1;
         public bool AutoFade { get; set; } = false;
         public bool IsActive { get; private set; } = false;
+        public bool IsMovable { get; private set; } = false;
+
+        bool isDragging = false;
+        Point dragStartPoint;
+        Rectangle lockBtnRect;
+
+        public event Action<Point> PositionSaved;
+        public event Action<bool> MovableStateChanged;
 
         public OverlayForm(AppSettings app)
         {
@@ -39,7 +58,7 @@ namespace BetterRawAccel
             ShowInTaskbar = false;
             TopMost = true;
             StartPosition = FormStartPosition.Manual;
-            Size = new Size(360, 96);
+            Size = new Size(380, 100);
             BackColor = Color.FromArgb(14, 15, 20);
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
@@ -47,11 +66,14 @@ namespace BetterRawAccel
 
             AutoFade = app.OverlayAutoFade;
             PositionMode = app.OverlayPosition ?? "top-right";
+            CustomX = app.OverlayCustomX;
+            CustomY = app.OverlayCustomY;
+            IsMovable = app.OverlayMovable;
 
             fadeTimer.Interval = 25;
             fadeTimer.Tick += OnFadeTick;
 
-            Reposition(PositionMode);
+            Reposition(PositionMode, CustomX, CustomY);
         }
 
         protected override CreateParams CreateParams
@@ -60,7 +82,7 @@ namespace BetterRawAccel
             {
                 var cp = base.CreateParams;
                 cp.ExStyle |= WS_EX_TOPMOST;
-                cp.ExStyle |= WS_EX_TRANSPARENT; // Mouse clicks pass right through to game
+                if (!IsMovable) cp.ExStyle |= WS_EX_TRANSPARENT; // Click-through when fixed
                 cp.ExStyle |= WS_EX_LAYERED;
                 cp.ExStyle |= WS_EX_NOACTIVATE;  // Never steals focus from Valorant / games
                 cp.ExStyle |= WS_EX_TOOLWINDOW;  // Hidden from Alt-Tab
@@ -70,11 +92,48 @@ namespace BetterRawAccel
 
         protected override bool ShowWithoutActivation => true;
 
-        public void Reposition(string pos)
+        public void SetMovable(bool movable)
+        {
+            IsMovable = movable;
+            if (IsHandleCreated)
+            {
+                int style = GetWindowLong(Handle, GWL_EXSTYLE);
+                if (movable)
+                {
+                    style &= ~WS_EX_TRANSPARENT; // Intercept mouse for dragging
+                    Cursor = Cursors.SizeAll;
+                }
+                else
+                {
+                    style |= WS_EX_TRANSPARENT; // Click-through for games
+                    Cursor = Cursors.Default;
+                }
+                SetWindowLong(Handle, GWL_EXSTYLE, style);
+            }
+
+            if (movable && !Visible) SetVisibility(true);
+
+            Invalidate();
+            Update();
+            MovableStateChanged?.Invoke(movable);
+        }
+
+        public void Reposition(string pos, int customX = -1, int customY = -1)
         {
             PositionMode = pos;
+            CustomX = customX;
+            CustomY = customY;
+
             var screen = Screen.PrimaryScreen.WorkingArea;
             int margin = 24;
+
+            if (pos == "custom" && customX >= 0 && customY >= 0)
+            {
+                Location = new Point(Math.Min(screen.Right - Width, Math.Max(0, customX)),
+                                     Math.Min(screen.Bottom - Height, Math.Max(0, customY)));
+                return;
+            }
+
             int x = screen.Right - Width - margin;
             int y = screen.Top + margin;
 
@@ -106,8 +165,9 @@ namespace BetterRawAccel
             Cm360Value = cm360 ?? "~52 cm";
 
             Invalidate();
+            Update();
 
-            if (AutoFade && IsActive)
+            if (AutoFade && IsActive && !IsMovable)
             {
                 TriggerToast(3.5);
             }
@@ -130,7 +190,7 @@ namespace BetterRawAccel
                 currentOpacity = targetOpacity;
                 Opacity = currentOpacity;
                 if (!Visible) Show();
-                if (AutoFade) TriggerToast(3.5);
+                if (AutoFade && !IsMovable) TriggerToast(3.5);
                 else fadeTimer.Stop();
             }
             else
@@ -145,9 +205,61 @@ namespace BetterRawAccel
             SetVisibility(!IsActive);
         }
 
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (!IsMovable) return;
+
+            if (e.Button == MouseButtons.Left)
+            {
+                if (lockBtnRect.Contains(e.Location))
+                {
+                    SetMovable(false);
+                    return;
+                }
+                isDragging = true;
+                dragStartPoint = e.Location;
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                SetMovable(false);
+            }
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            if (!IsMovable) return;
+
+            if (isDragging && e.Button == MouseButtons.Left)
+            {
+                var screen = Screen.FromControl(this).Bounds;
+                int newX = Location.X + e.X - dragStartPoint.X;
+                int newY = Location.Y + e.Y - dragStartPoint.Y;
+
+                newX = Math.Max(0, Math.Min(screen.Right - Width, newX));
+                newY = Math.Max(0, Math.Min(screen.Bottom - Height, newY));
+
+                Location = new Point(newX, newY);
+            }
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            if (isDragging)
+            {
+                isDragging = false;
+                CustomX = Location.X;
+                CustomY = Location.Y;
+                PositionMode = "custom";
+                PositionSaved?.Invoke(Location);
+            }
+        }
+
         void OnFadeTick(object sender, EventArgs e)
         {
-            if (!AutoFade && IsActive)
+            if ((!AutoFade || IsMovable) && IsActive)
             {
                 Opacity = targetOpacity;
                 fadeTimer.Stop();
@@ -186,30 +298,38 @@ namespace BetterRawAccel
             // Translucent rounded card background
             using (var path = RoundedRect(bounds, 10))
             {
-                using (var brush = new SolidBrush(Color.FromArgb(235, 15, 17, 23)))
+                using (var brush = new SolidBrush(Color.FromArgb(240, 15, 17, 23)))
                 {
                     g.FillPath(brush, path);
                 }
 
-                // High-contrast technical border
-                using (var pen = new Pen(Color.FromArgb(70, 255, 255, 255), 1.25f))
+                // Border: Cyan glowing accent when movable, subtle border when fixed
+                Color borderColor = IsMovable
+                    ? Color.FromArgb(230, 27, 150, 255)
+                    : Color.FromArgb(70, 255, 255, 255);
+                float borderWidth = IsMovable ? 2.0f : 1.25f;
+
+                using (var pen = new Pen(borderColor, borderWidth))
                 {
+                    if (IsMovable) pen.DashStyle = DashStyle.Dash;
                     g.DrawPath(pen, path);
                 }
             }
 
-            // Status indicator dot
+            // Status indicator dot (red = live, cyan = movable)
             int dotY = 16;
-            using (var dotBrush = new SolidBrush(Color.FromArgb(229, 72, 77)))
+            Color dotColor = IsMovable ? Color.FromArgb(27, 150, 255) : Color.FromArgb(229, 72, 77);
+            using (var dotBrush = new SolidBrush(dotColor))
             {
                 g.FillEllipse(dotBrush, 14, dotY, 7, 7);
             }
 
-            // Brand: accel. HUD
+            // Brand: accel. HUD or accel. [MOVABLE]
             using (var brandFont = new Font("Segoe UI", 9f, FontStyle.Bold))
             using (var brandBrush = new SolidBrush(Color.FromArgb(220, 222, 230)))
             {
-                g.DrawString("accel.", brandFont, brandBrush, 26, dotY - 4);
+                string brand = IsMovable ? "accel. [MOVABLE]" : "accel.";
+                g.DrawString(brand, brandFont, brandBrush, 26, dotY - 4);
             }
 
             // Active Profile Pill Tag
@@ -217,7 +337,26 @@ namespace BetterRawAccel
             using (var profBrush = new SolidBrush(Color.FromArgb(255, 255, 255)))
             {
                 string profText = "PROFILE: " + ProfileName;
-                g.DrawString(profText, profFont, profBrush, 85, dotY - 5);
+                int profX = IsMovable ? 145 : 85;
+                g.DrawString(profText, profFont, profBrush, profX, dotY - 5);
+            }
+
+            // Lock / Fix Button when in Movable Mode
+            if (IsMovable)
+            {
+                lockBtnRect = new Rectangle(Width - 84, 8, 72, 22);
+                using (var btnPath = RoundedRect(lockBtnRect, 4))
+                using (var btnBrush = new SolidBrush(Color.FromArgb(240, 27, 99, 181)))
+                using (var btnTextFont = new Font("Segoe UI", 8.5f, FontStyle.Bold))
+                using (var btnTextBrush = new SolidBrush(Color.White))
+                {
+                    g.FillPath(btnBrush, btnPath);
+                    g.DrawString("🔒 Lock", btnTextFont, btnTextBrush, Width - 75, 11);
+                }
+            }
+            else
+            {
+                lockBtnRect = Rectangle.Empty;
             }
 
             // Horizontal hairline separator
@@ -230,7 +369,7 @@ namespace BetterRawAccel
             using (var devFont = new Font("Segoe UI", 9f, FontStyle.Regular))
             using (var devBrush = new SolidBrush(Color.FromArgb(170, 175, 190)))
             {
-                string devText = "Mouse: " + Truncate(DeviceName, 36);
+                string devText = "Mouse: " + Truncate(DeviceName, 38);
                 g.DrawString(devText, devFont, devBrush, 14, 44);
             }
 
@@ -240,18 +379,22 @@ namespace BetterRawAccel
             using (var accentBrush = new SolidBrush(Color.FromArgb(77, 163, 255)))
             {
                 string modeText = ModeName + " (" + SensValue + ")";
-                g.DrawString(modeText, statsFont, statsBrush, 14, 66);
+                g.DrawString(modeText, statsFont, statsBrush, 14, 68);
 
                 string cmText = "·  Valorant: " + Cm360Value;
                 var modeSize = g.MeasureString(modeText, statsFont);
-                g.DrawString(cmText, statsFont, accentBrush, 14 + modeSize.Width + 4, 66);
+                g.DrawString(cmText, statsFont, accentBrush, 14 + modeSize.Width + 4, 68);
             }
 
-            // Hotkey toggle hint
+            // Hotkey / Hint in bottom right
             using (var hintFont = new Font("Segoe UI", 8f, FontStyle.Regular))
-            using (var hintBrush = new SolidBrush(Color.FromArgb(90, 95, 110)))
+            using (var hintBrush = new SolidBrush(Color.FromArgb(110, 115, 130)))
             {
-                g.DrawString("[Ctrl+Alt+O]", hintFont, hintBrush, Width - 80, 68);
+                string hint = IsMovable
+                    ? "[Drag anywhere · Click 🔒 or Ctrl+Alt+M to Lock]"
+                    : "[Ctrl+Alt+O] Toggle · [Ctrl+Alt+M] Move";
+                var hintSize = g.MeasureString(hint, hintFont);
+                g.DrawString(hint, hintFont, hintBrush, Width - hintSize.Width - 14, 70);
             }
         }
 
@@ -282,6 +425,7 @@ namespace BetterRawAccel
         {
             if (disposing)
             {
+                fadeTimer.Stop();
                 fadeTimer.Dispose();
             }
             base.Dispose(disposing);

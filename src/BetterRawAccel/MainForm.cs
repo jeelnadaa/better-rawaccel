@@ -59,6 +59,28 @@ namespace BetterRawAccel
             updater.RestartRequested += () => BeginInvoke((Action)(() => { restartAfterUpdate = true; Close(); }));
             inputTimer.Tick += (s, e) => FlushInput();
 
+            engine.Changed += () =>
+            {
+                if (InvokeRequired) BeginInvoke((Action)UpdateOverlay);
+                else UpdateOverlay();
+            };
+
+            overlay.PositionSaved += pt =>
+            {
+                app.OverlayPosition = "custom";
+                app.OverlayCustomX = pt.X;
+                app.OverlayCustomY = pt.Y;
+                app.Save();
+                Post(new JObject { ["event"] = "overlay_settings", ["settings"] = OverlayState() });
+            };
+
+            overlay.MovableStateChanged += mov =>
+            {
+                app.OverlayMovable = mov;
+                app.Save();
+                Post(new JObject { ["event"] = "overlay_settings", ["settings"] = OverlayState() });
+            };
+
             Activated += (s, e) =>
             {
                 SetRawInputActive(true);
@@ -267,6 +289,7 @@ namespace BetterRawAccel
                 if (tool.Mutates)
                 {
                     liveDirty = true;
+                    UpdateOverlay();
                     bool lite = (method == "update_profile" && args["patch"]?["name"] == null) || method == "set_mode";
                     reply["state"] = lite ? engine.UiState(true) : api.FullState();
                 }
@@ -346,8 +369,10 @@ namespace BetterRawAccel
         public void AppSettingsChanged(ICollection<string> keys)
         {
             if (keys.Contains("theme")) { BackColor = DeskColor(app.Theme); web.DefaultBackgroundColor = BackColor; }
-            if (keys.Contains("overlayPosition")) overlay.Reposition(app.OverlayPosition);
+            if (keys.Contains("overlayPosition") || keys.Contains("overlayCustomX") || keys.Contains("overlayCustomY"))
+                overlay.Reposition(app.OverlayPosition, app.OverlayCustomX, app.OverlayCustomY);
             if (keys.Contains("overlayAutoFade")) overlay.AutoFade = app.OverlayAutoFade;
+            if (keys.Contains("overlayMovable")) overlay.SetMovable(app.OverlayMovable);
             if (keys.Contains("overlayEnabled")) overlay.SetVisibility(app.OverlayEnabled);
             UpdateOverlay();
             if (keys.Contains("mcpEnabled") || keys.Contains("mcpPort"))
@@ -385,14 +410,40 @@ namespace BetterRawAccel
 
         public void ShowPanel(string panel) => Post(new JObject { ["event"] = "panel", ["panel"] = panel });
 
-        public void ToggleOverlay(bool? visible = null)
+        public void ToggleOverlay(bool? visible = null, bool? movable = null)
         {
-            if (InvokeRequired) { BeginInvoke((Action)(() => ToggleOverlay(visible))); return; }
-            if (visible.HasValue) overlay.SetVisibility(visible.Value);
-            else overlay.Toggle();
-            app.OverlayEnabled = overlay.IsActive;
-            app.Save();
+            if (InvokeRequired) { BeginInvoke((Action)(() => ToggleOverlay(visible, movable))); return; }
+            if (movable.HasValue)
+            {
+                overlay.SetMovable(movable.Value);
+                app.OverlayMovable = movable.Value;
+                app.Save();
+            }
+            if (visible.HasValue)
+            {
+                overlay.SetVisibility(visible.Value);
+                app.OverlayEnabled = overlay.IsActive;
+                app.Save();
+            }
+            else if (!movable.HasValue)
+            {
+                overlay.Toggle();
+                app.OverlayEnabled = overlay.IsActive;
+                app.Save();
+            }
+            UpdateOverlay();
             PushState("overlay", "toggle");
+        }
+
+        void ToggleMovable()
+        {
+            if (InvokeRequired) { BeginInvoke((Action)ToggleMovable); return; }
+            if (!overlay.Visible) overlay.SetVisibility(true);
+            overlay.SetMovable(!overlay.IsMovable);
+            app.OverlayMovable = overlay.IsMovable;
+            app.Save();
+            UpdateOverlay();
+            PushState("overlay", "movable");
         }
 
         public JObject OverlayState() => new JObject
@@ -400,6 +451,9 @@ namespace BetterRawAccel
             ["enabled"] = app.OverlayEnabled,
             ["visible"] = overlay.Visible,
             ["position"] = app.OverlayPosition,
+            ["movable"] = overlay.IsMovable,
+            ["customX"] = overlay.CustomX,
+            ["customY"] = overlay.CustomY,
             ["autoFade"] = app.OverlayAutoFade,
             ["hotkey"] = app.OverlayHotkey,
             ["profile"] = overlay.ProfileName,
@@ -434,6 +488,7 @@ namespace BetterRawAccel
 
         void UpdateOverlay()
         {
+            if (InvokeRequired) { BeginInvoke((Action)UpdateOverlay); return; }
             try
             {
                 var cur = engine.Current;
@@ -484,6 +539,7 @@ namespace BetterRawAccel
 
         const int HOTKEY_ID_OVERLAY = 9001;
         const int HOTKEY_ID_CYCLE = 9002;
+        const int HOTKEY_ID_MOVABLE = 9003;
 
         void RegisterGlobalHotkeys()
         {
@@ -491,6 +547,7 @@ namespace BetterRawAccel
             {
                 RegisterHotKey(Handle, HOTKEY_ID_OVERLAY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.O);
                 RegisterHotKey(Handle, HOTKEY_ID_CYCLE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.P);
+                RegisterHotKey(Handle, HOTKEY_ID_MOVABLE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.M);
                 for (int i = 0; i < 5; i++)
                 {
                     RegisterHotKey(Handle, 9011 + i, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)(Keys.D1 + i));
@@ -508,6 +565,7 @@ namespace BetterRawAccel
             {
                 UnregisterHotKey(Handle, HOTKEY_ID_OVERLAY);
                 UnregisterHotKey(Handle, HOTKEY_ID_CYCLE);
+                UnregisterHotKey(Handle, HOTKEY_ID_MOVABLE);
                 for (int i = 0; i < 5; i++) UnregisterHotKey(Handle, 9011 + i);
             }
             catch { }
@@ -596,6 +654,7 @@ namespace BetterRawAccel
                 int id = m.WParam.ToInt32();
                 if (id == HOTKEY_ID_OVERLAY) ToggleOverlay();
                 else if (id == HOTKEY_ID_CYCLE) CycleProfile();
+                else if (id == HOTKEY_ID_MOVABLE) ToggleMovable();
                 else if (id >= 9011 && id <= 9015) SwitchProfileByIndex(id - 9011);
             }
             else if (m.Msg == WM_INPUT && rawInputActive)

@@ -105,6 +105,9 @@ namespace BetterRawAccel.Core
         public string OverlayPosition = "top-right";
         public bool OverlayAutoFade = false;
         public string OverlayHotkey = "Ctrl+Alt+O";
+        public bool OverlayMovable = false;
+        public int OverlayCustomX = -1;
+        public int OverlayCustomY = -1;
 
         public static AppSettings Load()
         {
@@ -131,7 +134,7 @@ namespace BetterRawAccel.Core
             if (string.IsNullOrWhiteSpace(Theme)) Theme = "paper";
             if (string.IsNullOrWhiteSpace(Font)) Font = "satoshi";
             if (PlotView != "vel" && PlotView != "gain") PlotView = "sens";
-            if (OverlayPosition != "top-left" && OverlayPosition != "bottom-right" && OverlayPosition != "top-center")
+            if (OverlayPosition != "top-left" && OverlayPosition != "bottom-right" && OverlayPosition != "top-center" && OverlayPosition != "custom")
                 OverlayPosition = "top-right";
             if (string.IsNullOrWhiteSpace(OverlayHotkey)) OverlayHotkey = "Ctrl+Alt+O";
             return this;

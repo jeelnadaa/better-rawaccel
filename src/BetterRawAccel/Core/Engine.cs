@@ -31,6 +31,7 @@ namespace BetterRawAccel.Core
         }
 
         public AppSettings App { get; }
+        public event Action Changed;
         public DriverConfig Edit { get; private set; }
         public DriverConfig Active { get; private set; }
         public int Sel { get; private set; }
@@ -172,6 +173,7 @@ namespace BetterRawAccel.Core
                 throw;
             }
             if (Edit.ToJSON() != before) PushUndo(before, tag);
+            Changed?.Invoke();
         }
 
         static string Tidy(string errors) =>
@@ -213,7 +215,15 @@ namespace BetterRawAccel.Core
             return idx;
         }
 
-        public void SelectProfile(JToken which) => Sel = FindProfile(which);
+        public void SelectProfile(JToken which)
+        {
+            int next = FindProfile(which);
+            if (next != Sel)
+            {
+                Sel = next;
+                Changed?.Invoke();
+            }
+        }
 
         public void CreateProfile(string name, JToken copyFrom)
         {
@@ -322,6 +332,7 @@ namespace BetterRawAccel.Core
             redo.Add(Edit.ToJSON());
             Restore(undo[undo.Count - 1]);
             undo.RemoveAt(undo.Count - 1);
+            Changed?.Invoke();
         }
 
         public void Redo()
@@ -330,6 +341,7 @@ namespace BetterRawAccel.Core
             undo.Add(Edit.ToJSON());
             Restore(redo[redo.Count - 1]);
             redo.RemoveAt(redo.Count - 1);
+            Changed?.Invoke();
         }
 
         void Restore(string json)
@@ -348,6 +360,7 @@ namespace BetterRawAccel.Core
             if (before == activeJson) return;
             Restore(activeJson);
             PushUndo(before, null);
+            Changed?.Invoke();
         }
 
         public string Export() => Edit.ToJSON();
@@ -359,6 +372,7 @@ namespace BetterRawAccel.Core
             Edit = cfg;
             Sel = 0;
             if (Edit.ToJSON() != before) PushUndo(before, null);
+            Changed?.Invoke();
         }
 
         // ---------------------------------------------------------------- driver
@@ -385,6 +399,7 @@ namespace BetterRawAccel.Core
             finally
             {
                 Writing = false;
+                Changed?.Invoke();
             }
         }
 
@@ -403,6 +418,7 @@ namespace BetterRawAccel.Core
             finally
             {
                 Writing = false;
+                Changed?.Invoke();
             }
         }
 
@@ -593,6 +609,9 @@ namespace BetterRawAccel.Core
             ["overlayPosition"] = App.OverlayPosition,
             ["overlayAutoFade"] = App.OverlayAutoFade,
             ["overlayHotkey"] = App.OverlayHotkey,
+            ["overlayMovable"] = App.OverlayMovable,
+            ["overlayCustomX"] = App.OverlayCustomX,
+            ["overlayCustomY"] = App.OverlayCustomY,
         };
 
         /// <summary>Compact summary for MCP clients: no curve arrays, no metadata.</summary>

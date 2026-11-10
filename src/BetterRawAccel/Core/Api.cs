@@ -29,7 +29,7 @@ namespace BetterRawAccel.Core
         string ImportFromFile();
         void OpenUrl(string url);
         void ShowPanel(string panel);
-        void ToggleOverlay(bool? visible = null);
+        void ToggleOverlay(bool? visible = null, bool? movable = null);
         JObject OverlayState();
     }
 
@@ -325,12 +325,13 @@ namespace BetterRawAccel.Core
                 });
 
             Add("toggle_overlay",
-                "Toggle or set the in-game HUD overlay visibility. Shows active profile, mouse device, and sens over games like Valorant.",
-                S("{'type':'object','properties':{'visible':{'type':'boolean','description':'true to show, false to hide, or omit to toggle'}},'additionalProperties':false}"),
+                "Toggle or set the in-game HUD overlay visibility and movable/fixed mode. Shows active profile, mouse device, and sens over games like Valorant.",
+                S("{'type':'object','properties':{'visible':{'type':'boolean','description':'true to show, false to hide, or omit to toggle'},'movable':{'type':'boolean','description':'true for movable drag mode, false for fixed click-through mode'}},'additionalProperties':false}"),
                 true, a =>
                 {
                     bool? vis = a["visible"] != null ? (bool?)a["visible"] : null;
-                    host.ToggleOverlay(vis);
+                    bool? mov = a["movable"] != null ? (bool?)a["movable"] : null;
+                    host.ToggleOverlay(vis, mov);
                     return host.OverlayState();
                 });
 
@@ -519,6 +520,9 @@ namespace BetterRawAccel.Core
                     case "overlayPosition": s.OverlayPosition = (string)v; break;
                     case "overlayAutoFade": s.OverlayAutoFade = (bool)v; break;
                     case "overlayHotkey": s.OverlayHotkey = (string)v; break;
+                    case "overlayMovable": s.OverlayMovable = (bool)v; break;
+                    case "overlayCustomX": s.OverlayCustomX = Convert.ToInt32(v); break;
+                    case "overlayCustomY": s.OverlayCustomY = Convert.ToInt32(v); break;
                     default: throw new InvalidOperationException("Unknown setting: " + kv.Key);
                 }
                 changed.Add(kv.Key);

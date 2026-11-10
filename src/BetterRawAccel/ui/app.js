@@ -834,7 +834,8 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
       <p>Turning acceleration off resets the driver. Your settings stay here as unwritten changes, so one write brings them back.</p></div>
     <div class="grp"><span class="k">In-game HUD overlay</span>
       <div class="row"><label class="ck"><input type="checkbox" data-s="overlayEnabled" ${s.overlayEnabled ? "checked" : ""}>Show active profile &amp; device on screen</label><span class="sp"></span>
-        <button class="bt q" id="hudToggleBtn">${s.overlayEnabled ? "Hide overlay" : "Show overlay"}</button></div>
+        <button class="bt q" id="hudToggleBtn">${s.overlayEnabled ? "Hide overlay" : "Show overlay"}</button>
+        <button class="bt q" id="hudMoveBtn" style="margin-left:6px">${s.overlayMovable ? "🔒 Lock position" : "✋ Move / Unlock"}</button></div>
       <div class="row" style="gap:12px; margin-top:4px">
         <label class="row" style="gap:6px"><small>position</small>
           <select class="fi" id="hudPosition" style="padding:2px 8px; font-size:12px">
@@ -842,11 +843,12 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
             <option value="top-left" ${s.overlayPosition === "top-left" ? "selected" : ""}>Top Left</option>
             <option value="top-center" ${s.overlayPosition === "top-center" ? "selected" : ""}>Top Center</option>
             <option value="bottom-right" ${s.overlayPosition === "bottom-right" ? "selected" : ""}>Bottom Right</option>
+            <option value="custom" ${s.overlayPosition === "custom" ? "selected" : ""}>Custom (Draggable)</option>
           </select>
         </label>
         <label class="ck"><input type="checkbox" data-s="overlayAutoFade" ${s.overlayAutoFade ? "checked" : ""}>Auto-fade after 3.5s</label>
       </div>
-      <p>Safe for Riot Vanguard and borderless/windowed games. Global hotkey: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>O</kbd> to toggle, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> to cycle profiles, or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>5</kbd> for direct slot.</p></div>
+      <p>Safe for Riot Vanguard and borderless/windowed games. Hotkeys: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>O</kbd> to toggle, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> to unlock/lock position, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> to cycle profiles.</p></div>
     <div class="grp"><span class="k">Start-up</span>
       <div class="row"><label class="ck"><input type="checkbox" data-s="startWithWindows" ${s.startWithWindows ? "checked" : ""}>Apply my settings when I sign in to Windows</label></div>
       <div class="row"><label class="ck"><input type="checkbox" data-s="applyOnStart" ${s.applyOnStart ? "checked" : ""}>Write saved settings when this app starts</label></div>
@@ -874,6 +876,7 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
   const q = sel => body.querySelector(sel);
   q('[data-a="reset"]').onclick = () => call("reset_driver", {}, () => notice("Acceleration is off in the driver. Write to bring your settings back."));
   const hudTog = q("#hudToggleBtn"); if (hudTog) hudTog.onclick = () => call("toggle_overlay", {}).then(refreshSheet);
+  const hudMov = q("#hudMoveBtn"); if (hudMov) hudMov.onclick = () => call("toggle_overlay", { movable: !s.overlayMovable }).then(refreshSheet);
   const hudPos = q("#hudPosition"); if (hudPos) hudPos.onchange = () => call("set_app_settings", { overlayPosition: hudPos.value }).then(refreshSheet);
   body.querySelectorAll("[data-s]").forEach(el => el.onchange = () => call("set_app_settings", { [el.dataset.s]: el.checked }).then(refreshSheet));
   $("mcpPort").onchange = () => { const p = intOf($("mcpPort")); if (p != null) call("set_app_settings", { mcpPort: p }); };

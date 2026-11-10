@@ -111,6 +111,8 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 - "Share my current profile as a code."
 - "Switch the theme to Obsidian or Cyberpunk."
 - "Make a profile called `tracking` copied from `default`, with a lower cap."
+- "Turn on the in-game HUD overlay so I can see my active profile while playing Valorant."
+- "Move the HUD overlay to the top-center and enable auto-fade."
 - "I overshoot on fast flicks. Look at my curve and suggest a change, but don't write it yet."
 - "Open the sensitivity calculator panel."
 

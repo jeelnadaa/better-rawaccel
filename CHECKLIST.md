@@ -60,16 +60,16 @@ Checks were made by driving the running app through its MCP server and reading w
 ## Releases and updates
 - [x] GitHub Actions workflow: every push to `main` builds and publishes a release zip (v2.0.1 was published this way)
 - [x] Zip includes the driver, installer, uninstaller and writer; the driver in the v2.0.1 zip is byte-identical to upstream's signed file
-- [~] NuGet cache in the workflow — the first run saved it; a cache hit on a later run has not been looked at
+- [x] NuGet cache in the workflow (the second run restored it)
 - [x] SHA-256 file published next to the zip, and it matches
-- [~] In-app updater — the check runs and handles "no releases yet"; download, hash check and file swap can only be tried once a release exists
+- [x] In-app updater: a released 2.0.1 found 2.0.2 at start-up, downloaded it, passed the hash check, swapped its files, restarted as 2.0.2 and removed the staging folder. Not tried: installing on close instead of at once, and an app folder that is not writable
 
 ## Repo
 - [x] `README.md` with usage, MCP setup, build steps
 - [x] `CREDITS.md` and `LICENSE` crediting Raw Accel and its authors (MIT)
 - [x] `.gitignore` keeps personal files and the upstream clone out
 - [x] First commit
-- [x] Pushed; release v2.0.1 is public
+- [x] Pushed; releases v2.0.1 and v2.0.2 are public
 
 ## Ideas, not started
 - [ ] Per-game profiles: switch profile when a chosen game is in the foreground

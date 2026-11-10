@@ -80,6 +80,7 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] 14 light and dark themes: Paper, Ledger, Parchment, Millimeter, Technical, Chalk, Blueprint, Graphite, Phosphor, Obsidian, Midnight, Radar, Cyberpunk, Solarized
 - [x] High-contrast backdrop scrim and elevated styling for all dropdowns, modal sheets, and "How to use" notes
 - [x] Automated tests for the engine: `tests/BetterRawAccel.Tests` with 10 passing unit tests running in `dotnet test`
+- [x] In-game HUD overlay & global hotkeys: transparent click-through HUD (`WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED`), Vanguard/anti-cheat compliant, showing active profile, mouse device, and cm/360. Global hotkeys: `Ctrl+Alt+O` to toggle, `Ctrl+Alt+P` to cycle profiles, and `Ctrl+Alt+1..5` for direct profile slots. MCP tools: `toggle_overlay`, `get_overlay_state`.
 - [ ] Per-game profiles: switch profile when a chosen game is in the foreground
-- [ ] Tray icon and global hotkeys for switching profiles
+- [ ] Tray icon minimize and background daemon mode
 - [ ] ARM64 build, code-signed releases, winget package

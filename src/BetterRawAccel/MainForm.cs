@@ -24,6 +24,7 @@ namespace BetterRawAccel
         readonly Updater updater = new Updater();
         readonly Api api;
         readonly McpServer mcp;
+        readonly OverlayForm overlay;
         readonly WebView2 web = new WebView2 { Dock = DockStyle.Fill };
         readonly Timer inputTimer = new Timer { Interval = 8 };
         readonly Stopwatch inputClock = Stopwatch.StartNew();
@@ -41,6 +42,7 @@ namespace BetterRawAccel
         {
             this.app = app;
             this.engine = engine;
+            overlay = new OverlayForm(app);
             api = new Api(engine, updater, this);
             mcp = new McpServer(() => api.Tools, InvokeFromMcp);
 
@@ -62,6 +64,8 @@ namespace BetterRawAccel
             FormClosed += (s, e) =>
             {
                 mcp.Dispose();
+                UnregisterGlobalHotkeys();
+                overlay?.Dispose();
                 if (updater.Ready) updater.LaunchSwap(restartAfterUpdate);
             };
         }
@@ -176,6 +180,9 @@ namespace BetterRawAccel
             webReady = true;
 
             RegisterRawInput();
+            RegisterGlobalHotkeys();
+            UpdateOverlay();
+            if (app.OverlayEnabled) overlay.SetVisibility(true);
             inputTimer.Start();
             if (app.McpEnabled) mcp.Start(app.McpPort);
 
@@ -208,6 +215,7 @@ namespace BetterRawAccel
         void PushState(string source, string tool)
         {
             liveDirty = true;
+            UpdateOverlay();
             Post(new JObject { ["event"] = "state", ["state"] = api.FullState(), ["source"] = source, ["tool"] = tool });
         }
 
@@ -312,6 +320,10 @@ namespace BetterRawAccel
         public void AppSettingsChanged(ICollection<string> keys)
         {
             if (keys.Contains("theme")) { BackColor = DeskColor(app.Theme); web.DefaultBackgroundColor = BackColor; }
+            if (keys.Contains("overlayPosition")) overlay.Reposition(app.OverlayPosition);
+            if (keys.Contains("overlayAutoFade")) overlay.AutoFade = app.OverlayAutoFade;
+            if (keys.Contains("overlayEnabled")) overlay.SetVisibility(app.OverlayEnabled);
+            UpdateOverlay();
             if (keys.Contains("mcpEnabled") || keys.Contains("mcpPort"))
             {
                 // Restart after the current request has been answered, in case the request came in over MCP.
@@ -346,6 +358,134 @@ namespace BetterRawAccel
         }
 
         public void ShowPanel(string panel) => Post(new JObject { ["event"] = "panel", ["panel"] = panel });
+
+        public void ToggleOverlay(bool? visible = null)
+        {
+            if (InvokeRequired) { BeginInvoke((Action)(() => ToggleOverlay(visible))); return; }
+            if (visible.HasValue) overlay.SetVisibility(visible.Value);
+            else overlay.Toggle();
+            app.OverlayEnabled = overlay.IsActive;
+            app.Save();
+            PushState("overlay", "toggle");
+        }
+
+        public JObject OverlayState() => new JObject
+        {
+            ["enabled"] = app.OverlayEnabled,
+            ["visible"] = overlay.Visible,
+            ["position"] = app.OverlayPosition,
+            ["autoFade"] = app.OverlayAutoFade,
+            ["hotkey"] = app.OverlayHotkey,
+            ["profile"] = overlay.ProfileName,
+            ["device"] = overlay.DeviceName,
+            ["mode"] = overlay.ModeName,
+            ["sens"] = overlay.SensValue,
+            ["cm360"] = overlay.Cm360Value
+        };
+
+        void CycleProfile()
+        {
+            if (InvokeRequired) { BeginInvoke((Action)(CycleProfile)); return; }
+            if (engine.Edit.profiles.Count <= 1) return;
+            int next = (engine.Sel + 1) % engine.Edit.profiles.Count;
+            engine.SelectProfile(next);
+            UpdateOverlay();
+            overlay.TriggerToast(3.5);
+            PushState("hotkey", "cycle_profile");
+        }
+
+        void SwitchProfileByIndex(int idx)
+        {
+            if (InvokeRequired) { BeginInvoke((Action)(() => SwitchProfileByIndex(idx))); return; }
+            if (idx >= 0 && idx < engine.Edit.profiles.Count && idx != engine.Sel)
+            {
+                engine.SelectProfile(idx);
+                UpdateOverlay();
+                overlay.TriggerToast(3.5);
+                PushState("hotkey", "select_profile");
+            }
+        }
+
+        void UpdateOverlay()
+        {
+            try
+            {
+                var cur = engine.Current;
+                string prof = cur?.name ?? "default";
+
+                string devName = "All Mice";
+                try
+                {
+                    var cfg = engine.Active;
+                    var own = cfg.devices.Find(d => d.profile == prof);
+                    if (own != null)
+                    {
+                        var connected = MultiHandleDevice.GetList().FirstOrDefault(m => m.id == own.id);
+                        devName = connected != null ? connected.name : own.id;
+                    }
+                    else
+                    {
+                        var firstDev = MultiHandleDevice.GetList().FirstOrDefault();
+                        if (firstDev != null) devName = firstDev.name;
+                    }
+                }
+                catch { }
+
+                string mode = cur != null ? cur.argsX.mode.ToString() : "linear";
+                double sens = cur != null && cur.outputDPI > 0 ? cur.outputDPI / 1000.0 : 1.0;
+                string sensStr = sens.ToString("0.00") + "×";
+                double cm = SensitivityCalculator.Cm360(app.PlotDpi, sens, 0.07);
+                string cmStr = Math.Round(cm) + " cm";
+
+                overlay.UpdateInfo(prof, devName, mode, sensStr, cmStr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("update overlay", ex);
+            }
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        const int WM_HOTKEY = 0x0312;
+        const uint MOD_ALT = 0x0001;
+        const uint MOD_CONTROL = 0x0002;
+        const uint MOD_NOREPEAT = 0x4000;
+
+        const int HOTKEY_ID_OVERLAY = 9001;
+        const int HOTKEY_ID_CYCLE = 9002;
+
+        void RegisterGlobalHotkeys()
+        {
+            try
+            {
+                RegisterHotKey(Handle, HOTKEY_ID_OVERLAY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.O);
+                RegisterHotKey(Handle, HOTKEY_ID_CYCLE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.P);
+                for (int i = 0; i < 5; i++)
+                {
+                    RegisterHotKey(Handle, 9011 + i, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)(Keys.D1 + i));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("register hotkeys", ex);
+            }
+        }
+
+        void UnregisterGlobalHotkeys()
+        {
+            try
+            {
+                UnregisterHotKey(Handle, HOTKEY_ID_OVERLAY);
+                UnregisterHotKey(Handle, HOTKEY_ID_CYCLE);
+                for (int i = 0; i < 5; i++) UnregisterHotKey(Handle, 9011 + i);
+            }
+            catch { }
+        }
 
         public void OpenUrl(string url)
         {
@@ -401,7 +541,14 @@ namespace BetterRawAccel
 
         protected override void WndProc(ref Message m)
         {
-            if (m.Msg == WM_INPUT)
+            if (m.Msg == WM_HOTKEY)
+            {
+                int id = m.WParam.ToInt32();
+                if (id == HOTKEY_ID_OVERLAY) ToggleOverlay();
+                else if (id == HOTKEY_ID_CYCLE) CycleProfile();
+                else if (id >= 9011 && id <= 9015) SwitchProfileByIndex(id - 9011);
+            }
+            else if (m.Msg == WM_INPUT)
             {
                 uint size = (uint)Marshal.SizeOf(typeof(RAWINPUT));
                 uint got = GetRawInputData(m.LParam, RID_INPUT, out var ri, ref size, (uint)Marshal.SizeOf(typeof(RAWINPUTHEADER)));

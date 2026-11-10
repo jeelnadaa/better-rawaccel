@@ -828,6 +828,21 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
   body.innerHTML = `<div class="grp"><span class="k">Driver</span>
       <div class="row"><span>Raw Accel driver ${esc(a.driverVersion)}</span><span class="tag">connected</span><span class="sp"></span><button class="bt q" data-a="reset">Turn acceleration off</button></div>
       <p>Turning acceleration off resets the driver. Your settings stay here as unwritten changes, so one write brings them back.</p></div>
+    <div class="grp"><span class="k">In-game HUD overlay</span>
+      <div class="row"><label class="ck"><input type="checkbox" data-s="overlayEnabled" ${s.overlayEnabled ? "checked" : ""}>Show active profile &amp; device on screen</label><span class="sp"></span>
+        <button class="bt q" id="hudToggleBtn">${s.overlayEnabled ? "Hide overlay" : "Show overlay"}</button></div>
+      <div class="row" style="gap:12px; margin-top:4px">
+        <label class="row" style="gap:6px"><small>position</small>
+          <select class="fi" id="hudPosition" style="padding:2px 8px; font-size:12px">
+            <option value="top-right" ${s.overlayPosition === "top-right" ? "selected" : ""}>Top Right</option>
+            <option value="top-left" ${s.overlayPosition === "top-left" ? "selected" : ""}>Top Left</option>
+            <option value="top-center" ${s.overlayPosition === "top-center" ? "selected" : ""}>Top Center</option>
+            <option value="bottom-right" ${s.overlayPosition === "bottom-right" ? "selected" : ""}>Bottom Right</option>
+          </select>
+        </label>
+        <label class="ck"><input type="checkbox" data-s="overlayAutoFade" ${s.overlayAutoFade ? "checked" : ""}>Auto-fade after 3.5s</label>
+      </div>
+      <p>Safe for Riot Vanguard and borderless/windowed games. Global hotkey: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>O</kbd> to toggle, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> to cycle profiles, or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>5</kbd> for direct slot.</p></div>
     <div class="grp"><span class="k">Start-up</span>
       <div class="row"><label class="ck"><input type="checkbox" data-s="startWithWindows" ${s.startWithWindows ? "checked" : ""}>Apply my settings when I sign in to Windows</label></div>
       <div class="row"><label class="ck"><input type="checkbox" data-s="applyOnStart" ${s.applyOnStart ? "checked" : ""}>Write saved settings when this app starts</label></div>
@@ -854,6 +869,8 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
       <p>The driver, the acceleration math and settings format are <a class="lk" data-url="https://github.com/${esc(a.upstream)}">Raw Accel</a> by a1xd (simon), _m00se_, Sidiouth, TauntyArmordillo and contributors, MIT licence. This app is a new interface on top of their work and ships their signed driver unchanged.</p></div>`;
   const q = sel => body.querySelector(sel);
   q('[data-a="reset"]').onclick = () => call("reset_driver", {}, () => notice("Acceleration is off in the driver. Write to bring your settings back."));
+  const hudTog = q("#hudToggleBtn"); if (hudTog) hudTog.onclick = () => call("toggle_overlay", {}).then(refreshSheet);
+  const hudPos = q("#hudPosition"); if (hudPos) hudPos.onchange = () => call("set_app_settings", { overlayPosition: hudPos.value }).then(refreshSheet);
   body.querySelectorAll("[data-s]").forEach(el => el.onchange = () => call("set_app_settings", { [el.dataset.s]: el.checked }).then(refreshSheet));
   $("mcpPort").onchange = () => { const p = intOf($("mcpPort")); if (p != null) call("set_app_settings", { mcpPort: p }); };
   body.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard.writeText($(b.dataset.copy).textContent).then(() => { b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1200); }, () => fail(new Error("Could not copy"))));

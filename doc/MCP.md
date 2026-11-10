@@ -147,7 +147,8 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 | `pin_reference_curve`, `clear_reference_curve`, `get_reference_curve` | Pin and overlay a reference baseline curve on the plot to compare live edits |
 | `get_speed_histogram`, `reset_speed_histogram` | Retrieve hand speed distribution statistics (median, 90th percentile, peak) and bucket counts |
 | `export_plot_image` | Export the plot canvas image as a PNG |
-| `get_app_settings`, `set_app_settings` | Theme (14 light and dark themes), typeface, plot view and scale, start-up, updates |
+| `toggle_overlay`, `get_overlay_state` | Toggle in-game HUD overlay (visible, position, auto-fade) showing active profile and mouse device |
+| `get_app_settings`, `set_app_settings` | Theme (14 light and dark themes), typeface, plot view and scale, HUD overlay, start-up, updates |
 | `show_panel` | Open or close a panel (`profiles`, `devices`, `system`, `help`, `themes`, `fonts`, `cm360`, `none`) |
 | `check_for_updates`, `install_update` | Look for and install a newer release |
 

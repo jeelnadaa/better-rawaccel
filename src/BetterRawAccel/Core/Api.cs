@@ -29,6 +29,8 @@ namespace BetterRawAccel.Core
         string ImportFromFile();
         void OpenUrl(string url);
         void ShowPanel(string panel);
+        void ToggleOverlay(bool? visible = null);
+        JObject OverlayState();
     }
 
     /// <summary>
@@ -284,6 +286,7 @@ namespace BetterRawAccel.Core
                   "'plotDpi':{'type':'integer','description':'mouse DPI; only sets the plot x range (DPI x 0.05 counts/ms)'},'plotPollRate':{'type':'integer'}," +
                   "'autoUpdate':{'type':'boolean'},'applyOnStart':{'type':'boolean','description':'write settings.json to the driver when the app starts'}," +
                   "'startWithWindows':{'type':'boolean','description':'apply settings at logon using the bundled writer.exe'}," +
+                  "'overlayEnabled':{'type':'boolean','description':'show transparent in-game HUD overlay for Valorant/games'},'overlayPosition':{'type':'string','enum':['top-right','top-left','bottom-right','top-center']},'overlayAutoFade':{'type':'boolean'},'overlayHotkey':{'type':'string'}," +
                   "'plotView':{'type':'string','enum':['sens','vel','gain'],'description':'what the plot shows: sensitivity, output velocity, or gain'},'mcpEnabled':{'type':'boolean'},'mcpPort':{'type':'integer'},'helpSeen':{'type':'boolean'}}}"),
                 true, a =>
                 {
@@ -320,6 +323,20 @@ namespace BetterRawAccel.Core
                     host.ShowPanel(panel);
                     return new JObject { ["panel"] = panel };
                 });
+
+            Add("toggle_overlay",
+                "Toggle or set the in-game HUD overlay visibility. Shows active profile, mouse device, and sens over games like Valorant.",
+                S("{'type':'object','properties':{'visible':{'type':'boolean','description':'true to show, false to hide, or omit to toggle'}},'additionalProperties':false}"),
+                true, a =>
+                {
+                    bool? vis = a["visible"] != null ? (bool?)a["visible"] : null;
+                    host.ToggleOverlay(vis);
+                    return host.OverlayState();
+                });
+
+            Add("get_overlay_state",
+                "Get the in-game HUD overlay status, position, and currently displayed profile and device.",
+                null, false, a => host.OverlayState());
 
             Add("calculate_cm360",
                 "Calculate cm/360, in/360, curve range (slowest to fastest cm/360), and equivalent sensitivities across games (CS2/Source/Apex, Valorant, Overwatch 2, Fortnite, Rainbow Six Siege).",
@@ -498,6 +515,10 @@ namespace BetterRawAccel.Core
                         if ((int)v < 1024 || (int)v > 65535) throw new InvalidOperationException("mcpPort must be between 1024 and 65535");
                         s.McpPort = (int)v; break;
                     case "startWithWindows": Startup.Set((bool)v); break;
+                    case "overlayEnabled": s.OverlayEnabled = (bool)v; break;
+                    case "overlayPosition": s.OverlayPosition = (string)v; break;
+                    case "overlayAutoFade": s.OverlayAutoFade = (bool)v; break;
+                    case "overlayHotkey": s.OverlayHotkey = (string)v; break;
                     default: throw new InvalidOperationException("Unknown setting: " + kv.Key);
                 }
                 changed.Add(kv.Key);

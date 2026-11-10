@@ -327,4 +327,63 @@ namespace BetterRawAccel.Tests
             Assert.IsFalse(notInstalled2, "Generic driver access exceptions must not be falsely recognized as missing driver");
         }
     }
+
+    [TestClass]
+    public class OverlayHUDTests
+    {
+        [TestMethod]
+        public void TestOverlayFormStylesAndProperties()
+        {
+            var app = new AppSettings
+            {
+                OverlayEnabled = true,
+                OverlayPosition = "top-right",
+                OverlayAutoFade = false
+            };
+
+            using (var overlay = new OverlayForm(app))
+            {
+                Assert.IsTrue(overlay.TopMost, "Overlay must be TopMost to float above borderless games");
+                Assert.IsFalse(overlay.ShowInTaskbar, "Overlay must not appear in Windows taskbar");
+                Assert.AreEqual(System.Windows.Forms.FormBorderStyle.None, overlay.FormBorderStyle);
+
+                overlay.UpdateInfo("Valorant Headhunter", "Logitech G Pro", "Natural", "1.15×", "48 cm");
+                Assert.AreEqual("Valorant Headhunter", overlay.ProfileName);
+                Assert.AreEqual("Logitech G Pro", overlay.DeviceName);
+                Assert.AreEqual("Natural", overlay.ModeName);
+                Assert.AreEqual("1.15×", overlay.SensValue);
+                Assert.AreEqual("48 cm", overlay.Cm360Value);
+
+                overlay.Reposition("top-left");
+                Assert.AreEqual("top-left", overlay.PositionMode);
+                overlay.Reposition("bottom-right");
+                Assert.AreEqual("bottom-right", overlay.PositionMode);
+            }
+        }
+
+        [TestMethod]
+        public void TestOverlayAppSettingsSerialization()
+        {
+            var s = new AppSettings
+            {
+                OverlayEnabled = true,
+                OverlayPosition = "bottom-right",
+                OverlayAutoFade = true,
+                OverlayHotkey = "Ctrl+Alt+O"
+            };
+
+            s.Sanitized();
+            Assert.IsTrue(s.OverlayEnabled);
+            Assert.AreEqual("bottom-right", s.OverlayPosition);
+            Assert.IsTrue(s.OverlayAutoFade);
+            Assert.AreEqual("Ctrl+Alt+O", s.OverlayHotkey);
+
+            var sBad = new AppSettings
+            {
+                OverlayPosition = "invalid-position"
+            };
+            sBad.Sanitized();
+            Assert.AreEqual("top-right", sBad.OverlayPosition);
+        }
+    }
 }

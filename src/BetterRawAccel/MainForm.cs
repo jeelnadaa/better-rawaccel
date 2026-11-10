@@ -368,7 +368,7 @@ namespace BetterRawAccel
 
         public void AppSettingsChanged(ICollection<string> keys)
         {
-            if (keys.Contains("theme")) { BackColor = DeskColor(app.Theme); web.DefaultBackgroundColor = BackColor; }
+            if (keys.Contains("theme")) { BackColor = DeskColor(app.Theme); web.DefaultBackgroundColor = BackColor; overlay.SetTheme(app.Theme); }
             if (keys.Contains("overlayPosition") || keys.Contains("overlayCustomX") || keys.Contains("overlayCustomY"))
                 overlay.Reposition(app.OverlayPosition, app.OverlayCustomX, app.OverlayCustomY);
             if (keys.Contains("overlayAutoFade")) overlay.AutoFade = app.OverlayAutoFade;

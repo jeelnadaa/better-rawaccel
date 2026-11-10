@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using BetterRawAccel.Core;
@@ -8,8 +10,9 @@ using BetterRawAccel.Core;
 namespace BetterRawAccel
 {
     /// <summary>
-    /// Lightweight, non-intrusive in-game HUD overlay.
+    /// Precision engineering in-game HUD overlay matching the desktop drafting aesthetic.
     /// Supports Fixed (WS_EX_TRANSPARENT click-through) and Movable (interactive drag) modes.
+    /// Renders dynamically in all 14 application themes (Paper, Graphite, Blueprint, Obsidian, etc.)
     /// Completely external and 100% safe with Riot Vanguard, Easy Anti-Cheat, and BattlEye.
     /// </summary>
     public sealed class OverlayForm : Form
@@ -30,7 +33,7 @@ namespace BetterRawAccel
 
         readonly Timer fadeTimer = new Timer();
         DateTime showUntil = DateTime.MinValue;
-        float targetOpacity = 0.94f;
+        float targetOpacity = 0.96f;
         float currentOpacity = 0.0f;
 
         public string ProfileName { get; private set; } = "default";
@@ -45,9 +48,12 @@ namespace BetterRawAccel
         public bool IsActive { get; private set; } = false;
         public bool IsMovable { get; private set; } = false;
 
+        public string ActiveThemeName { get; private set; } = "paper";
+        OverlayTheme currentTheme;
+
         bool isDragging = false;
         Point dragStartPoint;
-        Rectangle lockBtnRect;
+        Rectangle lockBtnRect = Rectangle.Empty;
 
         public event Action<Point> PositionSaved;
         public event Action<bool> MovableStateChanged;
@@ -58,8 +64,8 @@ namespace BetterRawAccel
             ShowInTaskbar = false;
             TopMost = true;
             StartPosition = FormStartPosition.Manual;
-            Size = new Size(380, 100);
-            BackColor = Color.FromArgb(14, 15, 20);
+            Size = new Size(440, 108);
+            BackColor = Color.FromArgb(20, 20, 20);
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
             UpdateStyles();
@@ -69,6 +75,8 @@ namespace BetterRawAccel
             CustomX = app.OverlayCustomX;
             CustomY = app.OverlayCustomY;
             IsMovable = app.OverlayMovable;
+
+            SetTheme(app.Theme ?? "paper");
 
             fadeTimer.Interval = 25;
             fadeTimer.Tick += OnFadeTick;
@@ -91,6 +99,17 @@ namespace BetterRawAccel
         }
 
         protected override bool ShowWithoutActivation => true;
+
+        public void SetTheme(string themeName)
+        {
+            if (string.IsNullOrWhiteSpace(themeName)) themeName = "paper";
+            ActiveThemeName = themeName.ToLowerInvariant();
+            if (!Themes.TryGetValue(ActiveThemeName, out currentTheme))
+                currentTheme = Themes["paper"];
+
+            Invalidate();
+            Update();
+        }
 
         public void SetMovable(bool movable)
         {
@@ -212,7 +231,7 @@ namespace BetterRawAccel
 
             if (e.Button == MouseButtons.Left)
             {
-                if (lockBtnRect.Contains(e.Location))
+                if (!lockBtnRect.IsEmpty && lockBtnRect.Contains(e.Location))
                 {
                     SetMovable(false);
                     return;
@@ -291,22 +310,22 @@ namespace BetterRawAccel
             base.OnPaint(e);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
+            var theme = currentTheme ?? Themes["paper"];
             var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
 
-            // Translucent rounded card background
-            using (var path = RoundedRect(bounds, 10))
+            // 1. Engineering Drafting Sheet Background
+            int bgAlpha = theme.IsDark ? 245 : 248;
+            using (var path = RoundedRect(bounds, 6))
             {
-                using (var brush = new SolidBrush(Color.FromArgb(240, 15, 17, 23)))
+                using (var brush = new SolidBrush(Color.FromArgb(bgAlpha, theme.Sheet)))
                 {
                     g.FillPath(brush, path);
                 }
 
-                // Border: Cyan glowing accent when movable, subtle border when fixed
-                Color borderColor = IsMovable
-                    ? Color.FromArgb(230, 27, 150, 255)
-                    : Color.FromArgb(70, 255, 255, 255);
+                // Outer border: crisp high-contrast technical border, dashed highlight when movable
+                Color borderColor = IsMovable ? theme.Pen : theme.Border;
                 float borderWidth = IsMovable ? 2.0f : 1.25f;
 
                 using (var pen = new Pen(borderColor, borderWidth))
@@ -316,86 +335,141 @@ namespace BetterRawAccel
                 }
             }
 
-            // Status indicator dot (red = live, cyan = movable)
-            int dotY = 16;
-            Color dotColor = IsMovable ? Color.FromArgb(27, 150, 255) : Color.FromArgb(229, 72, 77);
-            using (var dotBrush = new SolidBrush(dotColor))
+            // Typography setup
+            using (var fontBrand = CreateFont(10.5f, FontStyle.Bold))
+            using (var fontTitle = CreateFont(11f, FontStyle.Bold))
+            using (var fontLabel = CreateFont(7.5f, FontStyle.Bold))
+            using (var fontSub = CreateFont(9f, FontStyle.Regular))
+            using (var fontFoot = CreateFont(7.2f, FontStyle.Regular))
+            using (var fontFootBold = CreateFont(7.5f, FontStyle.Bold))
+            using (var inkBrush = new SolidBrush(theme.Ink))
+            using (var ink2Brush = new SolidBrush(theme.Ink2))
+            using (var ink3Brush = new SolidBrush(theme.Ink3))
+            using (var penBrush = new SolidBrush(theme.Pen))
+            using (var rulePen = new Pen(theme.Rule, 1f))
             {
-                g.FillEllipse(dotBrush, 14, dotY, 7, 7);
-            }
-
-            // Brand: accel. HUD or accel. [MOVABLE]
-            using (var brandFont = new Font("Segoe UI", 9f, FontStyle.Bold))
-            using (var brandBrush = new SolidBrush(Color.FromArgb(220, 222, 230)))
-            {
-                string brand = IsMovable ? "accel. [MOVABLE]" : "accel.";
-                g.DrawString(brand, brandFont, brandBrush, 26, dotY - 4);
-            }
-
-            // Active Profile Pill Tag
-            using (var profFont = new Font("Segoe UI", 10.5f, FontStyle.Bold))
-            using (var profBrush = new SolidBrush(Color.FromArgb(255, 255, 255)))
-            {
-                string profText = "PROFILE: " + ProfileName;
-                int profX = IsMovable ? 145 : 85;
-                g.DrawString(profText, profFont, profBrush, profX, dotY - 5);
-            }
-
-            // Lock / Fix Button when in Movable Mode
-            if (IsMovable)
-            {
-                lockBtnRect = new Rectangle(Width - 84, 8, 72, 22);
-                using (var btnPath = RoundedRect(lockBtnRect, 4))
-                using (var btnBrush = new SolidBrush(Color.FromArgb(240, 27, 99, 181)))
-                using (var btnTextFont = new Font("Segoe UI", 8.5f, FontStyle.Bold))
-                using (var btnTextBrush = new SolidBrush(Color.White))
+                // 2. Header Row: Official Option 4 Brand Logo (accel.) & Status
+                // Vector curve icon
+                using (var curvePen = new Pen(theme.Ink, 2.2f))
                 {
-                    g.FillPath(btnBrush, btnPath);
-                    g.DrawString("🔒 Lock", btnTextFont, btnTextBrush, Width - 75, 11);
+                    curvePen.StartCap = LineCap.Round;
+                    curvePen.EndCap = LineCap.Round;
+                    using (var curvePath = new GraphicsPath())
+                    {
+                        curvePath.AddLine(14, 18, 20, 18);
+                        curvePath.AddBezier(20, 18, 24, 18, 26, 13, 29, 8);
+                        g.DrawPath(curvePen, curvePath);
+                    }
+                }
+                g.FillEllipse(inkBrush, 28f, 6.5f, 3.2f, 3.2f);
+                g.FillEllipse(penBrush, 32.5f, 6.5f, 2.4f, 2.4f);
+
+                // Wordmark: accel.
+                g.DrawString("accel", fontBrand, inkBrush, 38, 5);
+                var wordSize = g.MeasureString("accel", fontBrand);
+                g.DrawString(".", fontBrand, penBrush, 38 + wordSize.Width - 5, 5);
+
+                // LED Status Pulse
+                float ledX = 38 + wordSize.Width + 8;
+                g.FillEllipse(penBrush, ledX, 11, 5, 5);
+
+                // Mode / Status Badge
+                if (IsMovable)
+                {
+                    string movLabel = "MOVABLE HUD";
+                    var movSize = g.MeasureString(movLabel, fontLabel);
+                    var movBadgeRect = new Rectangle((int)ledX + 12, 7, (int)movSize.Width + 10, 16);
+                    using (var badgeBrush = new SolidBrush(Color.FromArgb(theme.IsDark ? 70 : 40, theme.Pen)))
+                    using (var badgePath = RoundedRect(movBadgeRect, 3))
+                    {
+                        g.FillPath(badgeBrush, badgePath);
+                    }
+                    g.DrawString(movLabel, fontLabel, penBrush, ledX + 17, 8);
+
+                    // Technical Lock Button (top right, no emoji)
+                    lockBtnRect = new Rectangle(Width - 76, 5, 62, 20);
+                    using (var lockPath = RoundedRect(lockBtnRect, 3))
+                    using (var lockBg = new SolidBrush(theme.Pen))
+                    using (var lockPen = new Pen(theme.Border, 1f))
+                    {
+                        g.FillPath(lockBg, lockPath);
+                        g.DrawPath(lockPen, lockPath);
+                    }
+                    using (var lockTextBrush = new SolidBrush(theme.IsDark ? Color.Black : Color.White))
+                    {
+                        var btnSize = g.MeasureString("LOCK", fontFootBold);
+                        float bx = lockBtnRect.X + (lockBtnRect.Width - btnSize.Width) / 2f;
+                        float by = lockBtnRect.Y + (lockBtnRect.Height - btnSize.Height) / 2f;
+                        g.DrawString("LOCK", fontFootBold, lockTextBrush, bx, by);
+                    }
+                }
+                else
+                {
+                    lockBtnRect = Rectangle.Empty;
+                    g.DrawString("ACTIVE · KERNEL HUD", fontLabel, ink3Brush, ledX + 12, 9);
+                }
+
+                // 3. Hairline divider under Header
+                g.DrawLine(rulePen, 10, 28, Width - 10, 28);
+
+                // 4. Precision Title Block Cells (Key-Value Grid)
+                // Cell 1: PROFILE
+                int col1X = 14;
+                g.DrawString("PROFILE", fontLabel, ink2Brush, col1X, 32);
+                g.DrawString(Truncate(ProfileName, 14), fontTitle, inkBrush, col1X, 45);
+
+                // Divider 1
+                g.DrawLine(rulePen, 136, 30, 136, 74);
+
+                // Cell 2: VALORANT CM/360
+                int col2X = 144;
+                g.DrawString("VALORANT", fontLabel, ink2Brush, col2X, 32);
+                g.DrawString(Cm360Value, fontTitle, penBrush, col2X, 45);
+
+                // Divider 2
+                g.DrawLine(rulePen, 246, 30, 246, 74);
+
+                // Cell 3: MODE & SENSITIVITY
+                int col3X = 254;
+                g.DrawString("MODE · MULT", fontLabel, ink2Brush, col3X, 32);
+                string modeSens = ModeName + " · " + SensValue;
+                g.DrawString(Truncate(modeSens, 14), fontSub, inkBrush, col3X, 46);
+
+                // Divider 3
+                g.DrawLine(rulePen, 344, 30, 344, 74);
+
+                // Cell 4: DEVICE
+                int col4X = 352;
+                g.DrawString("DEVICE", fontLabel, ink2Brush, col4X, 32);
+                g.DrawString(Truncate(DeviceName, 12), fontSub, ink2Brush, col4X, 46);
+
+                // 5. Hairline divider above Footer
+                g.DrawLine(rulePen, 10, 75, Width - 10, 75);
+
+                // 6. Footer Annotation / Hotkeys
+                if (IsMovable)
+                {
+                    string hint = "Drag anywhere to position · Click [LOCK] or press Ctrl+Alt+M to lock";
+                    g.DrawString(hint, fontFootBold, penBrush, 14, 83);
+                }
+                else
+                {
+                    string driverTag = "accel. driver: connected";
+                    g.DrawString(driverTag, fontFoot, ink3Brush, 14, 84);
+
+                    string hotkeys = "Ctrl+Alt+O Toggle · Ctrl+Alt+P Switch · Ctrl+Alt+M Move";
+                    var hkSize = g.MeasureString(hotkeys, fontFoot);
+                    g.DrawString(hotkeys, fontFoot, ink3Brush, Width - hkSize.Width - 14, 84);
                 }
             }
-            else
-            {
-                lockBtnRect = Rectangle.Empty;
-            }
+        }
 
-            // Horizontal hairline separator
-            using (var linePen = new Pen(Color.FromArgb(35, 255, 255, 255), 1f))
-            {
-                g.DrawLine(linePen, 14, 38, Width - 14, 38);
-            }
-
-            // Mouse Device Line
-            using (var devFont = new Font("Segoe UI", 9f, FontStyle.Regular))
-            using (var devBrush = new SolidBrush(Color.FromArgb(170, 175, 190)))
-            {
-                string devText = "Mouse: " + Truncate(DeviceName, 38);
-                g.DrawString(devText, devFont, devBrush, 14, 44);
-            }
-
-            // Mode, Sens & cm/360 stats
-            using (var statsFont = new Font("Segoe UI", 8.5f, FontStyle.Regular))
-            using (var statsBrush = new SolidBrush(Color.FromArgb(130, 136, 150)))
-            using (var accentBrush = new SolidBrush(Color.FromArgb(77, 163, 255)))
-            {
-                string modeText = ModeName + " (" + SensValue + ")";
-                g.DrawString(modeText, statsFont, statsBrush, 14, 68);
-
-                string cmText = "·  Valorant: " + Cm360Value;
-                var modeSize = g.MeasureString(modeText, statsFont);
-                g.DrawString(cmText, statsFont, accentBrush, 14 + modeSize.Width + 4, 68);
-            }
-
-            // Hotkey / Hint in bottom right
-            using (var hintFont = new Font("Segoe UI", 8f, FontStyle.Regular))
-            using (var hintBrush = new SolidBrush(Color.FromArgb(110, 115, 130)))
-            {
-                string hint = IsMovable
-                    ? "[Drag anywhere · Click 🔒 or Ctrl+Alt+M to Lock]"
-                    : "[Ctrl+Alt+O] Toggle · [Ctrl+Alt+M] Move";
-                var hintSize = g.MeasureString(hint, hintFont);
-                g.DrawString(hint, hintFont, hintBrush, Width - hintSize.Width - 14, 70);
-            }
+        static Font CreateFont(float size, FontStyle style)
+        {
+            try { return new Font("Satoshi", size, style); }
+            catch { }
+            try { return new Font("Segoe UI", size, style); }
+            catch { return new Font(FontFamily.GenericSansSerif, size, style); }
         }
 
         static GraphicsPath RoundedRect(Rectangle bounds, int radius)
@@ -418,7 +492,7 @@ namespace BetterRawAccel
         static string Truncate(string s, int maxLen)
         {
             if (string.IsNullOrEmpty(s)) return "";
-            return s.Length <= maxLen ? s : s.Substring(0, maxLen - 3) + "…";
+            return s.Length <= maxLen ? s : s.Substring(0, maxLen - 1) + "…";
         }
 
         protected override void Dispose(bool disposing)
@@ -430,5 +504,175 @@ namespace BetterRawAccel
             }
             base.Dispose(disposing);
         }
+
+        public sealed class OverlayTheme
+        {
+            public Color Sheet { get; set; }
+            public Color Ink { get; set; }
+            public Color Ink2 { get; set; }
+            public Color Ink3 { get; set; }
+            public Color Pen { get; set; }
+            public Color Rule { get; set; }
+            public Color Border { get; set; }
+            public bool IsDark { get; set; }
+        }
+
+        public static readonly Dictionary<string, OverlayTheme> Themes = new Dictionary<string, OverlayTheme>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["paper"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(242, 239, 231),
+                Ink = Color.FromArgb(22, 21, 15),
+                Ink2 = Color.FromArgb(75, 73, 64),
+                Ink3 = Color.FromArgb(111, 108, 97),
+                Pen = Color.FromArgb(181, 49, 27),
+                Rule = Color.FromArgb(32, 22, 21, 15),
+                Border = Color.FromArgb(22, 21, 15),
+                IsDark = false
+            },
+            ["ledger"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(237, 241, 230),
+                Ink = Color.FromArgb(15, 31, 21),
+                Ink2 = Color.FromArgb(59, 76, 64),
+                Ink3 = Color.FromArgb(88, 106, 92),
+                Pen = Color.FromArgb(31, 79, 176),
+                Rule = Color.FromArgb(35, 15, 31, 21),
+                Border = Color.FromArgb(15, 31, 21),
+                IsDark = false
+            },
+            ["parchment"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(250, 243, 230),
+                Ink = Color.FromArgb(31, 23, 16),
+                Ink2 = Color.FromArgb(84, 67, 53),
+                Ink3 = Color.FromArgb(125, 107, 90),
+                Pen = Color.FromArgb(156, 56, 24),
+                Rule = Color.FromArgb(32, 31, 23, 16),
+                Border = Color.FromArgb(31, 23, 16),
+                IsDark = false
+            },
+            ["millimeter"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(250, 248, 242),
+                Ink = Color.FromArgb(26, 31, 38),
+                Ink2 = Color.FromArgb(70, 78, 89),
+                Ink3 = Color.FromArgb(112, 120, 131),
+                Pen = Color.FromArgb(211, 47, 47),
+                Rule = Color.FromArgb(40, 230, 81, 0),
+                Border = Color.FromArgb(26, 31, 38),
+                IsDark = false
+            },
+            ["technical"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(246, 248, 250),
+                Ink = Color.FromArgb(13, 17, 23),
+                Ink2 = Color.FromArgb(48, 54, 61),
+                Ink3 = Color.FromArgb(87, 96, 106),
+                Pen = Color.FromArgb(9, 105, 218),
+                Rule = Color.FromArgb(35, 9, 105, 218),
+                Border = Color.FromArgb(13, 17, 23),
+                IsDark = false
+            },
+            ["chalk"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(236, 239, 241),
+                Ink = Color.FromArgb(27, 36, 40),
+                Ink2 = Color.FromArgb(67, 79, 84),
+                Ink3 = Color.FromArgb(104, 119, 125),
+                Pen = Color.FromArgb(0, 121, 107),
+                Rule = Color.FromArgb(32, 27, 36, 40),
+                Border = Color.FromArgb(27, 36, 40),
+                IsDark = false
+            },
+            ["blueprint"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(18, 55, 105),
+                Ink = Color.FromArgb(238, 243, 249),
+                Ink2 = Color.FromArgb(195, 209, 226),
+                Ink3 = Color.FromArgb(154, 174, 199),
+                Pen = Color.FromArgb(245, 196, 81),
+                Rule = Color.FromArgb(45, 221, 231, 243),
+                Border = Color.FromArgb(238, 243, 249),
+                IsDark = true
+            },
+            ["graphite"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(28, 28, 26),
+                Ink = Color.FromArgb(236, 232, 222),
+                Ink2 = Color.FromArgb(184, 179, 166),
+                Ink3 = Color.FromArgb(144, 140, 128),
+                Pen = Color.FromArgb(255, 107, 66),
+                Rule = Color.FromArgb(38, 236, 232, 222),
+                Border = Color.FromArgb(236, 232, 222),
+                IsDark = true
+            },
+            ["phosphor"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(18, 16, 11),
+                Ink = Color.FromArgb(242, 178, 76),
+                Ink2 = Color.FromArgb(204, 150, 67),
+                Ink3 = Color.FromArgb(166, 124, 60),
+                Pen = Color.FromArgb(255, 240, 200),
+                Rule = Color.FromArgb(42, 242, 178, 76),
+                Border = Color.FromArgb(242, 178, 76),
+                IsDark = true
+            },
+            ["obsidian"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(12, 13, 14),
+                Ink = Color.FromArgb(242, 244, 247),
+                Ink2 = Color.FromArgb(168, 173, 183),
+                Ink3 = Color.FromArgb(113, 119, 132),
+                Pen = Color.FromArgb(255, 59, 48),
+                Rule = Color.FromArgb(36, 242, 244, 247),
+                Border = Color.FromArgb(242, 244, 247),
+                IsDark = true
+            },
+            ["midnight"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(14, 22, 38),
+                Ink = Color.FromArgb(226, 232, 240),
+                Ink2 = Color.FromArgb(148, 163, 184),
+                Ink3 = Color.FromArgb(100, 116, 139),
+                Pen = Color.FromArgb(0, 229, 255),
+                Rule = Color.FromArgb(45, 56, 189, 248),
+                Border = Color.FromArgb(226, 232, 240),
+                IsDark = true
+            },
+            ["radar"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(7, 21, 11),
+                Ink = Color.FromArgb(51, 255, 102),
+                Ink2 = Color.FromArgb(36, 191, 75),
+                Ink3 = Color.FromArgb(24, 135, 52),
+                Pen = Color.FromArgb(118, 255, 3),
+                Rule = Color.FromArgb(48, 51, 255, 102),
+                Border = Color.FromArgb(51, 255, 102),
+                IsDark = true
+            },
+            ["cyberpunk"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(23, 18, 36),
+                Ink = Color.FromArgb(248, 249, 250),
+                Ink2 = Color.FromArgb(184, 181, 199),
+                Ink3 = Color.FromArgb(130, 126, 150),
+                Pen = Color.FromArgb(255, 42, 133),
+                Rule = Color.FromArgb(50, 168, 85, 247),
+                Border = Color.FromArgb(255, 42, 133),
+                IsDark = true
+            },
+            ["solarized"] = new OverlayTheme
+            {
+                Sheet = Color.FromArgb(0, 43, 54),
+                Ink = Color.FromArgb(147, 161, 161),
+                Ink2 = Color.FromArgb(101, 123, 131),
+                Ink3 = Color.FromArgb(88, 110, 117),
+                Pen = Color.FromArgb(181, 137, 0),
+                Rule = Color.FromArgb(42, 131, 148, 150),
+                Border = Color.FromArgb(147, 161, 161),
+                IsDark = true
+            }
+        };
     }
 }

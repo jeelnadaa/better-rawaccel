@@ -6,10 +6,10 @@
   <title>Download accel. — Windows x64 Release &amp; Quickstart</title>
   <meta name="description" content="Download the latest release of accel. (Better Raw Accel) for Windows 10/11 x64. Complete with anti-cheat signed kernel driver, 14 themes, and cm/360 converter.">
 
-  <!-- Typefaces: Satoshi & Cabinet Grotesk via Fontshare, IBM Plex Mono for technical data -->
+  <!-- Typeface: Satoshi via Fontshare, IBM Plex Mono for technical numbers -->
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=cabinet-grotesk@700,800,900&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,15 +22,23 @@
   <header class="site-header">
     <div class="container header-inner">
       <a href="index.html" class="brand" aria-label="accel. home">
-        <img src="logos/logo-opt1.svg" alt="accel." class="brand-logo-svg" id="headerLogo">
-        <span class="brand-badge">v2.0</span>
+        <!-- Inline Option 4 Logo: High contrast on both light and dark themes -->
+        <svg class="brand-logo-svg" viewBox="0 0 170 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(2, 2)">
+            <path d="M 4 25 L 14 25 C 20 25, 24 19, 28 7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="28" cy="7" r="3.5" fill="currentColor"/>
+            <circle cx="34" cy="7" r="2.2" fill="var(--accent)"/>
+          </g>
+          <text x="46" y="28" font-family="'Satoshi', sans-serif" font-weight="900" font-size="28" letter-spacing="-1.2px" fill="currentColor">
+            accel<tspan fill="var(--accent)">.</tspan>
+          </text>
+        </svg>
       </a>
 
       <nav class="nav-links">
         <a href="index.html#features" class="nav-link">Features</a>
-        <a href="index.html#demo" class="nav-link">Interactive Demo</a>
+        <a href="index.html#demo" class="nav-link">Aim Simulator</a>
         <a href="index.html#valorant" class="nav-link">Valorant Aim Guide</a>
-        <a href="index.html#logos" class="nav-link">Logo Concepts</a>
         <a href="download.html" class="nav-link active">Download</a>
       </nav>
 
@@ -51,21 +59,24 @@
   <!-- Download Hero Section -->
   <section class="download-hero">
     <div class="container">
-      <span class="section-tag">Direct GitHub Release</span>
-      <h1 class="section-title" style="margin-bottom: 24px;">Download accel. for Windows</h1>
-      <p class="section-desc" style="max-width: 640px; margin: 0 auto 40px;">
-        Includes the signed kernel driver, high-performance GUI, bundled offline fonts, cm/360 converter, and automated background updater.
-      </p>
+      <div class="reveal">
+        <span class="section-tag">Direct GitHub Release</span>
+        <h1 class="section-title" style="margin-bottom: 24px;">Download accel. for Windows</h1>
+        <p class="section-desc" style="max-width: 640px; margin: 0 auto 40px;">
+          Includes the signed kernel driver, high-performance GUI, bundled offline fonts, cm/360 converter, and automated background updater.
+        </p>
+      </div>
 
-      <!-- Main Download Card -->
-      <div class="download-card-large">
+      <!-- Main Download Card (All tags strictly in Satoshi typography) -->
+      <div class="download-card-large reveal delay-1">
         <div class="download-card-head">
-          <div>
-            <span class="dl-version-tag">LATEST RELEASE: v2.0.2</span>
-            <span style="font-family:var(--font-mono); font-size:12px; color:var(--ink2); margin-left:12px;">Windows 10 / 11 · 64-bit (x64)</span>
+          <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span class="dl-version-tag">LATEST RELEASE</span>
+            <span class="dl-platform-label">Windows 10 / 11 · 64-bit (x64)</span>
           </div>
-          <div style="font-family:var(--font-mono); font-size:12px; color:var(--green); font-weight:700;">
-            ● Driver Digitally Signed &amp; Whitelisted
+          <div class="dl-signed-badge">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:currentColor;"></span>
+            Driver Digitally Signed &amp; Whitelisted
           </div>
         </div>
 
@@ -73,7 +84,7 @@
           <div class="download-btn-row">
             <a href="https://github.com/jeelnadaa/better-rawaccel/releases/latest/download/BetterRawAccel-win-x64.zip" class="btn btn-accent btn-lg" id="primaryDownloadBtn">
               Download BetterRawAccel-win-x64.zip
-              <span style="font-family:var(--font-mono); font-size:12px; opacity:0.85;">(~1.4 MB)</span>
+              <span style="font-size:12.5px; opacity:0.85;">(~1.4 MB)</span>
             </a>
             <a href="https://github.com/jeelnadaa/better-rawaccel/releases/latest" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">
               View on GitHub Releases ↗
@@ -90,7 +101,7 @@
           </div>
 
           <!-- 3-Minute Quickstart -->
-          <h4 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">3-Minute Quickstart Setup</h4>
+          <h4 style="font-family:var(--font-ui); font-size: 18px; font-weight: 800; margin-bottom: 16px;">3-Minute Quickstart Setup</h4>
           <div class="quickstart-steps">
             <div class="step-box">
               <div class="step-num">STEP 01</div>
@@ -121,7 +132,7 @@
   <!-- Compatibility & Safety Section -->
   <section class="section">
     <div class="container">
-      <div class="section-head">
+      <div class="section-head reveal">
         <span class="section-tag">Security &amp; Hardware</span>
         <h2 class="section-title">Whitelisted Anti-Cheat Protection</h2>
         <p class="section-desc">
@@ -130,21 +141,21 @@
       </div>
 
       <div class="features-grid">
-        <div class="feature-card">
+        <div class="feature-card reveal delay-1">
           <span class="feature-num">SAFETY // KERNEL SIGNING</span>
           <h3 class="feature-title">Official Driver Signature</h3>
           <p class="feature-desc">
             The underlying driver is byte-identical to the upstream signed <code>rawaccel.sys</code> driver trusted by thousands of competitive esports players since 2020.
           </p>
         </div>
-        <div class="feature-card">
+        <div class="feature-card reveal delay-2">
           <span class="feature-num">COMPATIBILITY // GAMES</span>
           <h3 class="feature-title">Whitelisted Games</h3>
           <p class="feature-desc">
             100% compliant with Riot Vanguard (Valorant), Easy Anti-Cheat (Apex Legends, Fortnite), BattlEye (Rainbow Six Siege), and Valve Anti-Cheat (CS2).
           </p>
         </div>
-        <div class="feature-card">
+        <div class="feature-card reveal delay-3">
           <span class="feature-num">LATENCY // 0.00 MS</span>
           <h3 class="feature-title">Zero Input Overhead</h3>
           <p class="feature-desc">
@@ -158,12 +169,12 @@
   <!-- FAQ Section -->
   <section class="section" style="background: color-mix(in srgb, var(--desk) 40%, var(--bg));">
     <div class="container">
-      <div class="section-head">
+      <div class="section-head reveal">
         <span class="section-tag">Got Questions?</span>
         <h2 class="section-title">Frequently Asked Questions</h2>
       </div>
 
-      <div class="faq-grid">
+      <div class="faq-grid reveal delay-1">
         <div class="faq-item">
           <div class="faq-question">
             <span>Will I get banned in Valorant by Riot Vanguard?</span>
@@ -222,7 +233,16 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-brand">
-          <h4>accel<span style="color:var(--accent);">.</span></h4>
+          <svg class="brand-logo-svg" viewBox="0 0 170 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g transform="translate(2, 2)">
+              <path d="M 4 25 L 14 25 C 20 25, 24 19, 28 7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="28" cy="7" r="3.5" fill="currentColor"/>
+              <circle cx="34" cy="7" r="2.2" fill="var(--accent)"/>
+            </g>
+            <text x="46" y="28" font-family="'Satoshi', sans-serif" font-weight="900" font-size="28" letter-spacing="-1.2px" fill="currentColor">
+              accel<tspan fill="var(--accent)">.</tspan>
+            </text>
+          </svg>
           <p style="max-width:380px; margin-bottom:16px;">
             A modern, high-precision interface for kernel-level mouse acceleration on Windows. Built for competitive tactical FPS players.
           </p>

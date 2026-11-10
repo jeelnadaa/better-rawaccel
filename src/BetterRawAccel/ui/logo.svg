@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 44" fill="none">
+  <!-- accel. Official Logo (Kinetic Velocity Curve + Precision Dot) -->
+  <g transform="translate(3, 4)">
+    <!-- Flat velocity baseline curving upward smoothly -->
+    <path d="M 4 26 L 14 26 C 20 26, 24 20, 28 8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="28" cy="8" r="3.5" fill="currentColor"/>
+    <circle cx="34" cy="8" r="2.2" fill="#e5484d"/>
+  </g>
+  <text x="48" y="29" font-family="'Satoshi', system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" letter-spacing="-1.2px" fill="currentColor">
+    accel<tspan fill="#e5484d">.</tspan>
+  </text>
+</svg>

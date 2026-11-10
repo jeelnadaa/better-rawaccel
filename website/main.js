@@ -1,5 +1,5 @@
 /**
- * accel. — Interactive Engine, Aim Simulator, Curve Visualizer & Theme System
+ * accel. — Interactive Engine, Aim Simulator, Curve Visualizer, Scroll Animations & Theme System
  */
 
 (function () {
@@ -22,33 +22,25 @@
     window.dispatchEvent(new CustomEvent('themeChanged', { detail: t }));
   }
 
-  // ---------------- 2. Logo Showcase Switcher ----------------
-  const logoCards = document.querySelectorAll('.logo-card');
-  const activeLogoSvgs = document.querySelectorAll('.brand-logo-svg');
-  const logoNotice = document.getElementById('selectedLogoNotice');
-  const storedLogo = localStorage.getItem('accel.logoOption') || '1';
-
-  function applyLogoOption(opt) {
-    localStorage.setItem('accel.logoOption', opt);
-    logoCards.forEach(c => c.classList.toggle('active', c.dataset.opt === opt));
-    activeLogoSvgs.forEach(img => {
-      img.src = `logos/logo-opt${opt}.svg`;
+  // ---------------- 2. Scroll Reveal Animations ----------------
+  const revealElements = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && revealElements.length > 0) {
+    const observer = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          obs.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.12,
+      rootMargin: '0px 0px -40px 0px'
     });
-    if (logoNotice) {
-      const titles = {
-        '1': 'Option 1: Kinetic Tangent',
-        '2': 'Option 2: Precision Crosshair Curve',
-        '3': 'Option 3: Technical Blueprint Titleblock',
-        '4': 'Option 4: Velocity Pulse'
-      };
-      logoNotice.textContent = `Active Brand Logo: ${titles[opt] || 'Option ' + opt}`;
-    }
-  }
 
-  logoCards.forEach(c => {
-    c.addEventListener('click', () => applyLogoOption(c.dataset.opt));
-  });
-  applyLogoOption(storedLogo);
+    revealElements.forEach(el => observer.observe(el));
+  } else {
+    revealElements.forEach(el => el.classList.add('is-visible'));
+  }
 
   // ---------------- 3. Hero Mini Curve Visualizer ----------------
   const heroCv = document.getElementById('heroCurveCanvas');
@@ -73,13 +65,12 @@
     window.addEventListener('resize', resizeHeroCv);
     resizeHeroCv();
 
-    // Natural acceleration curve calculation: sens = 1 + (limit - 1) * (1 - exp(-decay * (v - offset)))
     function computeHeroCurve() {
       const offset = 2.0;
       const limit = 2.0;
       const decay = 0.08;
       for (let i = 0; i < N; i++) {
-        const v = (i / (N - 1)) * 35; // 0 to 35 c/ms
+        const v = (i / (N - 1)) * 35;
         if (v <= offset) {
           curvePoints[i] = 1.0;
         } else {
@@ -94,14 +85,12 @@
       const dt = Math.min((now - lastHeroTime) / 1000, 0.1);
       lastHeroTime = now;
 
-      // Slowly oscillate hero marker for background kinetic motion
       const t = now * 0.0015;
       heroMarkerTarget = 14 + Math.sin(t * 1.5) * 11 + Math.sin(t * 3.7) * 4;
       heroMarkerSpeed += (heroMarkerTarget - heroMarkerSpeed) * Math.min(1, dt * 6);
 
       ctx.clearRect(0, 0, W, H);
 
-      // Grid lines
       const isDark = document.documentElement.dataset.theme !== 'paper';
       ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
       ctx.lineWidth = 1;
@@ -109,7 +98,6 @@
       const pw = W - padding.l - padding.r;
       const ph = H - padding.t - padding.b;
 
-      // Draw horizontal reference lines
       for (let yStep = 1.0; yStep <= 2.0; yStep += 0.5) {
         const yPos = padding.t + ph * (1 - (yStep - 0.8) / 1.4);
         ctx.beginPath();
@@ -118,11 +106,10 @@
         ctx.stroke();
 
         ctx.font = '10px "IBM Plex Mono", monospace';
-        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
         ctx.fillText(yStep.toFixed(1) + '×', 6, yPos + 3);
       }
 
-      // Draw Curve
       ctx.beginPath();
       for (let i = 0; i < N; i++) {
         const x = padding.l + (i / (N - 1)) * pw;
@@ -135,14 +122,12 @@
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      // Current live marker position on curve
       const markerFrac = Math.max(0, Math.min(1, heroMarkerSpeed / 35));
       const mx = padding.l + markerFrac * pw;
       const curveIdx = Math.round(markerFrac * (N - 1));
       const currentSens = curvePoints[curveIdx] || 1.0;
       const my = padding.t + ph * (1 - (currentSens - 0.8) / 1.4);
 
-      // Marker crosshair
       ctx.strokeStyle = isDark ? '#fff' : '#000';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -150,13 +135,11 @@
       ctx.moveTo(padding.l, my); ctx.lineTo(padding.l + pw, my);
       ctx.stroke();
 
-      // Marker circle
       ctx.fillStyle = '#e5484d';
       ctx.beginPath();
       ctx.arc(mx, my, 4.5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Update Hero readouts
       const sIn = document.getElementById('heroSensIn');
       const sOut = document.getElementById('heroSensOut');
       const sMul = document.getElementById('heroSensMul');
@@ -165,8 +148,6 @@
       if (sOut) sOut.textContent = (heroMarkerSpeed * currentSens).toFixed(1);
       if (sMul) sMul.textContent = currentSens.toFixed(2) + '×';
       if (sCm) {
-        // At 800 DPI, Valorant sens 0.35, yaw 0.07:
-        // cm360 = 360 / (sens * currentSens * 0.07) / 800 * 2.54
         const effSens = 0.35 * currentSens;
         const cm = (360 / (effSens * 0.07) / 800) * 2.54;
         sCm.textContent = Math.round(cm) + ' cm';
@@ -183,20 +164,19 @@
     const actx = aimCv.getContext('2d');
     let aW, aH;
     let aimX = 0, aimY = 0;
-    let isTracking = false;
     let targetsHit = 0;
     let totalClicks = 0;
 
-    // Simulation settings
     let accelEnabled = true;
     let userDpi = 800;
-    let baseSens = 0.35; // Valorant sens
+    let baseSens = 0.35;
     let curveType = 'natural';
     let curveLimit = 1.8;
     let curveOffset = 3.0;
 
-    // Targets in the 2D aim zone
     let targets = [];
+    let hitRipples = [];
+
     function spawnTarget(type = 'normal') {
       const radius = type === 'micro' ? 10 : 22;
       return {
@@ -232,7 +212,6 @@
     window.addEventListener('resize', resizeAimCv);
     resizeAimCv();
 
-    // DOM UI bindings
     const dpiSelect = document.getElementById('demoDpi');
     const modeSelect = document.getElementById('demoCurveType');
     const limitSlider = document.getElementById('demoLimit');
@@ -267,13 +246,9 @@
       });
     }
 
-    // Hand speed tracking
     let lastMoveTime = performance.now();
-    let currentHandSpeed = 0; // c/ms
+    let currentHandSpeed = 0;
     let smoothedMultiplier = 1.0;
-
-    aimCv.addEventListener('mouseenter', () => { isTracking = true; });
-    aimCv.addEventListener('mouseleave', () => { isTracking = false; });
 
     aimCv.addEventListener('mousemove', e => {
       const now = performance.now();
@@ -284,19 +259,15 @@
       const rawX = e.clientX - rect.left;
       const rawY = e.clientY - rect.top;
 
-      // Mouse delta in pixels / mouse counts (normalized by userDpi)
       const dx = rawX - aimX;
       const dy = rawY - aimY;
       const distPx = Math.sqrt(dx * dx + dy * dy);
 
-      // Convert pixel distance to counts/ms based on user selected DPI
-      // Standard monitor: ~96 DPI. Mouse moves: distPx * (userDpi / 96)
       const counts = distPx * (userDpi / 96);
-      const measuredSpeed = counts / dt; // counts per ms
+      const measuredSpeed = counts / dt;
 
       currentHandSpeed = measuredSpeed;
 
-      // Calculate acceleration multiplier
       let mult = 1.0;
       if (accelEnabled) {
         if (curveType === 'natural') {
@@ -314,12 +285,9 @@
 
       smoothedMultiplier += (mult - smoothedMultiplier) * 0.4;
 
-      // Move virtual crosshair
-      // When accel is active, flick movements amplify while micro-movements stay 1.0x!
       aimX += dx * (accelEnabled ? mult : 1.0);
       aimY += dy * (accelEnabled ? mult : 1.0);
 
-      // Clamp to canvas borders
       aimX = Math.max(8, Math.min(aW - 8, aimX));
       aimY = Math.max(8, Math.min(aH - 8, aimY));
     });
@@ -333,7 +301,8 @@
         if (dist <= t.radius + 3) {
           targetsHit++;
           hit = true;
-          // Respawn target elsewhere
+          // Spawn expanding hit ripple
+          hitRipples.push({ x: t.x, y: t.y, r: t.radius, color: t.color, alpha: 1.0 });
           targets.splice(i, 1);
           targets.push(spawnTarget(t.type));
           break;
@@ -347,7 +316,6 @@
     function drawAimDemo(now) {
       actx.clearRect(0, 0, aW, aH);
 
-      // Decay hand speed if idle
       if (now - lastMoveTime > 60) {
         currentHandSpeed *= 0.85;
         if (currentHandSpeed < 0.05) currentHandSpeed = 0;
@@ -355,13 +323,31 @@
 
       const isDark = document.documentElement.dataset.theme !== 'paper';
 
-      // Draw faint crosshair guidelines
       actx.strokeStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
       actx.lineWidth = 1;
       actx.beginPath();
       actx.moveTo(aW / 2, 0); actx.lineTo(aW / 2, aH);
       actx.moveTo(0, aH / 2); actx.lineTo(aW, aH / 2);
       actx.stroke();
+
+      // Render Expanding Hit Ripples
+      for (let i = hitRipples.length - 1; i >= 0; i--) {
+        const rp = hitRipples[i];
+        rp.r += 1.8;
+        rp.alpha -= 0.04;
+        if (rp.alpha <= 0) {
+          hitRipples.splice(i, 1);
+          continue;
+        }
+        actx.save();
+        actx.globalAlpha = Math.max(0, rp.alpha);
+        actx.strokeStyle = rp.color;
+        actx.lineWidth = 2;
+        actx.beginPath();
+        actx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+        actx.stroke();
+        actx.restore();
+      }
 
       // Render Targets
       targets.forEach(t => {
@@ -372,7 +358,6 @@
         actx.translate(t.x, t.y);
         actx.scale(scale, scale);
 
-        // Target outer ring
         actx.beginPath();
         actx.arc(0, 0, t.radius, 0, Math.PI * 2);
         actx.fillStyle = t.type === 'micro' ? 'rgba(229, 72, 77, 0.15)' : 'rgba(27, 99, 181, 0.15)';
@@ -381,7 +366,6 @@
         actx.lineWidth = t.type === 'micro' ? 2 : 1.5;
         actx.stroke();
 
-        // Target core dot
         actx.beginPath();
         actx.arc(0, 0, t.type === 'micro' ? 3 : 5, 0, Math.PI * 2);
         actx.fillStyle = t.color;
@@ -390,7 +374,7 @@
         actx.restore();
       });
 
-      // Render Virtual Crosshair
+      // Crosshair
       actx.strokeStyle = '#e5484d';
       actx.lineWidth = 1.5;
       const chSize = 7;
@@ -404,12 +388,10 @@
       actx.fillStyle = '#e5484d';
       actx.fill();
 
-      // Update Live Readouts in Sidebar
       if (liveSpeedEl) liveSpeedEl.textContent = currentHandSpeed.toFixed(1) + ' c/ms';
       if (liveSensEl) liveSensEl.textContent = (accelEnabled ? smoothedMultiplier.toFixed(2) : '1.00') + '×';
       if (liveCmEl) {
         const effSens = baseSens * (accelEnabled ? smoothedMultiplier : 1.0);
-        // Valorant yaw: 0.07. Formula: 360 / (sens * 0.07) / DPI * 2.54
         const cm = (360 / (effSens * 0.07) / userDpi) * 2.54;
         liveCmEl.textContent = Math.round(cm) + ' cm/360';
       }
@@ -426,10 +408,9 @@
     const a = item.querySelector('.faq-answer');
     if (!q || !a) return;
 
-    a.style.display = 'none'; // start collapsed
+    a.style.display = 'none';
     q.addEventListener('click', () => {
       const isOpen = a.style.display === 'block';
-      // Close others
       faqItems.forEach(other => {
         const otherA = other.querySelector('.faq-answer');
         if (otherA) otherA.style.display = 'none';
@@ -443,7 +424,6 @@
     });
   });
 
-  // Open first FAQ by default
   if (faqItems[0]) {
     const firstA = faqItems[0].querySelector('.faq-answer');
     if (firstA) firstA.style.display = 'block';

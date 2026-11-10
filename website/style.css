@@ -26,6 +26,7 @@
   --blue: #1b63b5;
   --blue-soft: rgba(27, 99, 181, 0.08);
   --green: #2d8048;
+  --green-soft: rgba(45, 128, 72, 0.1);
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -38,51 +39,56 @@
 /* ---------------- Themes ---------------- */
 [data-theme="graphite"] {
   --bg: #1c1d21; --desk: #141518; --card: #23252a; --pop-bg: #27292f;
-  --ink: #f0f0f2; --ink2: #a2a4ad; --ink3: #6c6e78;
-  --border: #33363f; --border-strong: #4f5360;
+  --ink: #f0f0f2; --ink2: #a2a4ad; --ink3: #7e808a;
+  --border: #33363f; --border-strong: #646876;
   --grid: rgba(255, 255, 255, 0.03); --grid-maj: rgba(255, 255, 255, 0.06);
-  --accent: #e5484d; --accent-soft: rgba(229, 72, 77, 0.12);
-  --blue: #3e88e5; --blue-soft: rgba(62, 136, 229, 0.12);
+  --accent: #e5484d; --accent-soft: rgba(229, 72, 77, 0.14);
+  --blue: #3e88e5; --blue-soft: rgba(62, 136, 229, 0.14);
+  --green: #4ade80; --green-soft: rgba(74, 222, 128, 0.12);
   --shadow-md: 0 14px 40px rgba(0,0,0,0.45);
 }
 
 [data-theme="blueprint"] {
   --bg: #0d2847; --desk: #091b30; --card: #12345c; --pop-bg: #153c69;
-  --ink: #e8f1fa; --ink2: #9bc0e8; --ink3: #5f8ebf;
+  --ink: #e8f1fa; --ink2: #9bc0e8; --ink3: #6e9ac9;
   --border: #1e4d82; --border-strong: #72a9e2;
   --grid: rgba(155, 192, 232, 0.06); --grid-maj: rgba(155, 192, 232, 0.12);
-  --accent: #ff9e42; --accent-soft: rgba(255, 158, 66, 0.12);
-  --blue: #4da3ff; --blue-soft: rgba(77, 163, 255, 0.15);
+  --accent: #ff9e42; --accent-soft: rgba(255, 158, 66, 0.15);
+  --blue: #4da3ff; --blue-soft: rgba(77, 163, 255, 0.18);
+  --green: #34d399; --green-soft: rgba(52, 211, 153, 0.14);
   --shadow-md: 0 14px 40px rgba(0,0,0,0.55);
 }
 
 [data-theme="obsidian"] {
   --bg: #0a0a0c; --desk: #050507; --card: #121216; --pop-bg: #18181e;
-  --ink: #fbfbfe; --ink2: #92929e; --ink3: #565662;
-  --border: #22222a; --border-strong: #3e3e4c;
+  --ink: #fbfbfe; --ink2: #9e9eb0; --ink3: #6b6b7a;
+  --border: #22222a; --border-strong: #4a4a5a;
   --grid: rgba(255, 255, 255, 0.025); --grid-maj: rgba(255, 255, 255, 0.05);
-  --accent: #ff3b5c; --accent-soft: rgba(255, 59, 92, 0.12);
-  --blue: #4088ff; --blue-soft: rgba(64, 136, 255, 0.12);
+  --accent: #ff3b5c; --accent-soft: rgba(255, 59, 92, 0.15);
+  --blue: #4088ff; --blue-soft: rgba(64, 136, 255, 0.15);
+  --green: #10b981; --green-soft: rgba(16, 185, 129, 0.12);
   --shadow-md: 0 16px 48px rgba(0,0,0,0.7);
 }
 
 [data-theme="cyberpunk"] {
   --bg: #090a12; --desk: #05050a; --card: #101224; --pop-bg: #151830;
-  --ink: #f0f8ff; --ink2: #00e5ff; --ink3: #6e7a9e;
+  --ink: #f0f8ff; --ink2: #00e5ff; --ink3: #8a96bc;
   --border: #21264c; --border-strong: #00e5ff;
   --grid: rgba(0, 229, 255, 0.04); --grid-maj: rgba(255, 0, 110, 0.07);
-  --accent: #ff006e; --accent-soft: rgba(255, 0, 110, 0.15);
-  --blue: #00e5ff; --blue-soft: rgba(0, 229, 255, 0.15);
+  --accent: #ff006e; --accent-soft: rgba(255, 0, 110, 0.18);
+  --blue: #00e5ff; --blue-soft: rgba(0, 229, 255, 0.18);
+  --green: #00ff66; --green-soft: rgba(0, 255, 102, 0.15);
   --shadow-md: 0 16px 48px rgba(0, 229, 255, 0.12);
 }
 
 [data-theme="chalk"] {
   --bg: #222629; --desk: #181a1d; --card: #2c3136; --pop-bg: #33383e;
-  --ink: #f4f5f6; --ink2: #adb5bd; --ink3: #757d86;
+  --ink: #f4f5f6; --ink2: #b4bcc4; --ink3: #7f8892;
   --border: #3f454d; --border-strong: #f4f5f6;
   --grid: rgba(255, 255, 255, 0.035); --grid-maj: rgba(255, 255, 255, 0.07);
-  --accent: #86efac; --accent-soft: rgba(134, 239, 172, 0.12);
-  --blue: #93c5fd; --blue-soft: rgba(147, 197, 253, 0.12);
+  --accent: #86efac; --accent-soft: rgba(134, 239, 172, 0.14);
+  --blue: #93c5fd; --blue-soft: rgba(147, 197, 253, 0.14);
+  --green: #86efac; --green-soft: rgba(134, 239, 172, 0.12);
 }
 
 /* ---------------- Base & Engineering Paper Grid ---------------- */
@@ -112,7 +118,7 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
-button { font-family: inherit; cursor: pointer; border: none; background: none; }
+button { font-family: var(--font-ui); cursor: pointer; border: none; background: none; }
 
 .container {
   width: 100%;
@@ -120,6 +126,24 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin: 0 auto;
   padding: 0 24px;
 }
+
+/* ---------------- Fluid Scroll & Reveal Animations ---------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.delay-1 { transition-delay: 0.1s; }
+.delay-2 { transition-delay: 0.2s; }
+.delay-3 { transition-delay: 0.3s; }
+.delay-4 { transition-delay: 0.4s; }
 
 /* ---------------- Titleblock Header / Navigation ---------------- */
 .site-header {
@@ -142,36 +166,32 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  color: var(--ink);
+  transition: opacity 0.2s ease;
+}
+
+.brand:hover {
+  opacity: 0.9;
 }
 
 .brand-logo-svg {
-  height: 34px;
+  height: 32px;
   width: auto;
+  display: block;
   color: var(--ink);
-}
-
-.brand-badge {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 7px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 4px;
-  letter-spacing: 0.5px;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 28px;
 }
 
 .nav-link {
-  font-size: 14px;
-  font-weight: 500;
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  font-weight: 600;
   color: var(--ink2);
   transition: color 0.2s ease;
   position: relative;
@@ -198,9 +218,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .theme-select {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--border);
@@ -217,9 +238,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-weight: 700;
   font-size: 14px;
-  padding: 9px 18px;
+  padding: 10px 20px;
   border-radius: var(--radius-sm);
   transition: all 0.2s var(--ease);
   cursor: pointer;
@@ -262,21 +284,22 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .btn-secondary:hover {
   border-color: var(--ink);
+  transform: translateY(-1px);
 }
 
 .btn-sm {
-  font-size: 12px;
-  padding: 5px 12px;
+  font-size: 12.5px;
+  padding: 6px 14px;
 }
 
 .btn-lg {
-  font-size: 16px;
-  padding: 14px 28px;
+  font-size: 15.5px;
+  padding: 13px 26px;
 }
 
 /* ---------------- Hero Section ---------------- */
 .hero {
-  padding: 80px 0 60px;
+  padding: 72px 0 54px;
   position: relative;
 }
 
@@ -292,8 +315,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   gap: 10px;
   margin-bottom: 20px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   color: var(--ink2);
 }
 
@@ -313,12 +338,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .hero-title {
-  font-family: var(--font-display);
-  font-size: clamp(40px, 5.2vw, 68px);
-  font-weight: 800;
+  font-family: var(--font-ui);
+  font-size: clamp(38px, 5vw, 64px);
+  font-weight: 900;
   line-height: 1.05;
-  letter-spacing: -1.8px;
-  margin-bottom: 24px;
+  letter-spacing: -1.6px;
+  margin-bottom: 22px;
 }
 
 .hero-title .highlight {
@@ -328,11 +353,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .hero-desc {
-  font-size: clamp(17px, 1.8vw, 20px);
+  font-family: var(--font-ui);
+  font-size: clamp(16.5px, 1.8vw, 19.5px);
+  font-weight: 450;
   color: var(--ink2);
   line-height: 1.55;
   max-width: 580px;
-  margin-bottom: 36px;
+  margin-bottom: 34px;
 }
 
 .hero-actions {
@@ -340,16 +367,17 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-wrap: wrap;
   gap: 16px;
   align-items: center;
-  margin-bottom: 36px;
+  margin-bottom: 34px;
 }
 
 .hero-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink3);
+  gap: 20px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink2);
 }
 
 .hero-badges span {
@@ -358,15 +386,20 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   gap: 6px;
 }
 
-.hero-badges i {
+.hero-badges svg {
   color: var(--accent);
-  font-style: normal;
-  font-weight: 700;
+  flex-shrink: 0;
 }
 
 /* ---------------- Hero Interactive Card (The Mini-App) ---------------- */
 .hero-preview {
   position: relative;
+  animation: floatCard 6s ease-in-out infinite;
+}
+
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 .app-frame {
@@ -382,11 +415,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 11px 16px;
   background: color-mix(in srgb, var(--ink) 4%, var(--card));
   border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
   color: var(--ink2);
 }
 
@@ -438,8 +472,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .readout-col .lbl {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--ink3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -452,7 +487,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   color: var(--ink);
 }
 
-/* ---------------- Logo Showcase Section ---------------- */
+/* ---------------- Sections ---------------- */
 .section {
   padding: 80px 0;
   border-top: 1px solid var(--border);
@@ -465,9 +500,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .section-tag {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 800;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -476,114 +511,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .section-title {
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: clamp(28px, 3.5vw, 42px);
-  font-weight: 800;
+  font-weight: 850;
   letter-spacing: -1px;
   margin-bottom: 16px;
   line-height: 1.15;
 }
 
 .section-desc {
+  font-family: var(--font-ui);
   font-size: 17px;
   color: var(--ink2);
-}
-
-.logo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.logo-card {
-  background: var(--card);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 24px;
-  cursor: pointer;
-  transition: all 0.25s var(--ease);
-  position: relative;
-  text-align: left;
-}
-
-.logo-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--ink);
-  box-shadow: var(--shadow-md);
-}
-
-.logo-card.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), var(--shadow-md);
-}
-
-.logo-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.logo-opt-tag {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  background: var(--border);
-  color: var(--ink);
-  border-radius: 4px;
-}
-
-.logo-card.active .logo-opt-tag {
-  background: var(--accent);
-  color: #fff;
-}
-
-.logo-card-badge {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--ink3);
-}
-
-.logo-preview-box {
-  height: 90px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--ink) 3%, var(--card));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 16px;
-  padding: 12px;
-}
-
-.logo-preview-box img, .logo-preview-box svg {
-  max-width: 80%;
-  max-height: 48px;
-}
-
-.logo-card-title {
-  font-weight: 700;
-  font-size: 16px;
-  margin-bottom: 6px;
-}
-
-.logo-card-desc {
-  font-size: 13px;
-  color: var(--ink2);
-  line-height: 1.45;
-}
-
-.logo-banner {
-  text-align: center;
-  padding: 14px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--card));
-  border: 1px dashed var(--accent);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--ink);
 }
 
 /* ---------------- Interactive Aim & Acceleration Demo ---------------- */
@@ -633,10 +572,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   top: 16px;
   left: 16px;
   pointer-events: none;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--ink2);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -657,26 +597,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .control-label {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--ink);
 }
 
 .control-label small {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   color: var(--ink3);
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .control-select, .control-input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 12px;
   background: var(--bg);
   color: var(--ink);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
   outline: none;
 }
 
@@ -702,8 +644,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .toggle-btn {
   padding: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
   border-radius: 3px;
   color: var(--ink2);
   transition: all 0.2s ease;
@@ -726,11 +669,22 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
 }
 
-.stat-pill .k { font-size: 10px; color: var(--ink3); text-transform: uppercase; }
-.stat-pill .v { font-size: 16px; font-weight: 700; color: var(--accent); }
+.stat-pill .k {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink3);
+  text-transform: uppercase;
+}
+
+.stat-pill .v {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
 
 /* ---------------- Valorant Aim Breakdown Section ---------------- */
 .features-grid {
@@ -744,33 +698,36 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 32px;
-  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), border-color 0.25s ease;
   position: relative;
 }
 
 .feature-card:hover {
   transform: translateY(-4px);
+  border-color: var(--border-strong);
   box-shadow: var(--shadow-md);
 }
 
 .feature-num {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--accent);
+  letter-spacing: 0.5px;
   margin-bottom: 12px;
   display: block;
 }
 
 .feature-title {
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 12px;
   letter-spacing: -0.5px;
 }
 
 .feature-desc {
+  font-family: var(--font-ui);
   font-size: 15px;
   color: var(--ink2);
   line-height: 1.6;
@@ -788,26 +745,34 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 20px;
+  padding: 22px;
+  transition: transform 0.2s var(--ease);
+}
+
+.scenario-card:hover {
+  transform: translateY(-2px);
 }
 
 .scenario-tag {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 800;
   color: var(--blue);
-  font-weight: 600;
+  letter-spacing: 0.5px;
   margin-bottom: 6px;
   display: block;
 }
 
 .scenario-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--font-ui);
+  font-size: 16.5px;
+  font-weight: 800;
   margin-bottom: 8px;
 }
 
 .scenario-body {
-  font-size: 13.5px;
+  font-family: var(--font-ui);
+  font-size: 14px;
   color: var(--ink2);
 }
 
@@ -815,7 +780,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .callout-box {
   margin-top: 48px;
   padding: 28px 32px;
-  background: color-mix(in srgb, var(--green) 7%, var(--card));
+  background: var(--green-soft);
   border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
   border-radius: var(--radius-md);
   display: flex;
@@ -823,19 +788,24 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   gap: 20px;
 }
 
-.callout-icon {
-  font-size: 28px;
-  line-height: 1;
+.callout-icon-svg {
+  width: 32px;
+  height: 32px;
+  color: var(--green);
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .callout-content h4 {
+  font-family: var(--font-ui);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 6px;
   color: var(--ink);
 }
 
 .callout-content p {
+  font-family: var(--font-ui);
   font-size: 14.5px;
   color: var(--ink2);
 }
@@ -852,13 +822,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: var(--card);
   border: 2px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 8px 8px 0 var(--border-strong);
+  box-shadow: 6px 6px 0 var(--border-strong);
   overflow: hidden;
   text-align: left;
 }
 
 .download-card-head {
-  padding: 24px 32px;
+  padding: 22px 28px;
   background: color-mix(in srgb, var(--ink) 4%, var(--card));
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -868,14 +838,34 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   gap: 16px;
 }
 
+/* In the user screenshot, ensure all these tags use Satoshi! */
 .dl-version-tag {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 13px;
-  font-weight: 700;
-  padding: 4px 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 5px 12px;
   background: var(--ink);
   color: var(--bg);
   border-radius: 4px;
+}
+
+.dl-platform-label {
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink2);
+  margin-left: 12px;
+}
+
+.dl-signed-badge {
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--green);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .download-card-body {
@@ -895,8 +885,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -905,6 +895,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .checksum-hash {
+  font-family: var(--font-mono);
+  font-size: 12px;
   word-break: break-all;
   color: var(--ink2);
 }
@@ -921,24 +913,31 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 18px;
+  transition: transform 0.2s var(--ease);
+}
+
+.step-box:hover {
+  transform: translateY(-2px);
 }
 
 .step-num {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 800;
   color: var(--accent);
   margin-bottom: 6px;
 }
 
 .step-box h5 {
+  font-family: var(--font-ui);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 6px;
 }
 
 .step-box p {
-  font-size: 13px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
   color: var(--ink2);
 }
 
@@ -956,13 +955,19 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.faq-item:hover {
+  border-color: var(--ink2);
 }
 
 .faq-question {
   width: 100%;
   text-align: left;
   padding: 18px 22px;
-  font-weight: 700;
+  font-family: var(--font-ui);
+  font-weight: 750;
   font-size: 16px;
   display: flex;
   justify-content: space-between;
@@ -972,6 +977,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .faq-answer {
   padding: 0 22px 18px;
+  font-family: var(--font-ui);
   font-size: 14.5px;
   color: var(--ink2);
   line-height: 1.6;
@@ -993,17 +999,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-bottom: 48px;
 }
 
-.footer-brand h4 {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 800;
+.footer-brand {
   color: var(--ink);
-  margin-bottom: 12px;
+}
+
+.footer-brand .brand-logo-svg {
+  margin-bottom: 14px;
 }
 
 .footer-col h5 {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--ink);
@@ -1029,14 +1036,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
   color: var(--ink3);
 }
 
 .footer-credits-note {
   max-width: 600px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--ink2);
 }

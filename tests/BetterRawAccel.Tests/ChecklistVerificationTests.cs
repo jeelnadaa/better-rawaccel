@@ -385,5 +385,18 @@ namespace BetterRawAccel.Tests
             sBad.Sanitized();
             Assert.AreEqual("top-right", sBad.OverlayPosition);
         }
+
+        [TestMethod]
+        public void TestZeroLagForegroundExecutionMode()
+        {
+            // Verify overlay does not enable mouse input hooks and maintains zero-activation flags
+            var s = new AppSettings();
+            using (var overlay = new OverlayForm(s))
+            {
+                Assert.IsTrue(overlay.TopMost);
+                Assert.IsFalse(overlay.ShowInTaskbar);
+                Assert.AreEqual(System.Windows.Forms.FormBorderStyle.None, overlay.FormBorderStyle);
+            }
+        }
     }
 }

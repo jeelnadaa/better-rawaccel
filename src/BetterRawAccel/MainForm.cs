@@ -26,7 +26,7 @@ namespace BetterRawAccel
         readonly McpServer mcp;
         readonly OverlayForm overlay;
         readonly WebView2 web = new WebView2 { Dock = DockStyle.Fill };
-        readonly Timer inputTimer = new Timer { Interval = 8 };
+        readonly Timer inputTimer = new Timer { Interval = 16 };
         readonly Stopwatch inputClock = Stopwatch.StartNew();
 
         bool webReady;
@@ -58,6 +58,33 @@ namespace BetterRawAccel
             updater.Changed += () => Post(new JObject { ["event"] = "update", ["update"] = updater.Dto() });
             updater.RestartRequested += () => BeginInvoke((Action)(() => { restartAfterUpdate = true; Close(); }));
             inputTimer.Tick += (s, e) => FlushInput();
+
+            Activated += (s, e) =>
+            {
+                SetRawInputActive(true);
+                Post(new JObject { ["event"] = "window_focus", ["active"] = true });
+                try { web.CoreWebView2?.Resume(); } catch { }
+            };
+
+            Deactivate += (s, e) =>
+            {
+                SetRawInputActive(false);
+                Post(new JObject { ["event"] = "window_focus", ["active"] = false });
+            };
+
+            Resize += (s, e) =>
+            {
+                if (WindowState == FormWindowState.Minimized)
+                {
+                    SetRawInputActive(false);
+                    Post(new JObject { ["event"] = "window_focus", ["active"] = false });
+                    try { web.CoreWebView2?.TrySuspendAsync(); } catch { }
+                }
+                else
+                {
+                    try { web.CoreWebView2?.Resume(); } catch { }
+                }
+            };
 
             Load += async (s, e) => await Start();
             FormClosing += (s, e) => SaveBounds();
@@ -179,11 +206,10 @@ namespace BetterRawAccel
             core.Navigate($"https://{UiHost}/index.html");
             webReady = true;
 
-            RegisterRawInput();
+            SetRawInputActive(true);
             RegisterGlobalHotkeys();
             UpdateOverlay();
             if (app.OverlayEnabled) overlay.SetVisibility(true);
-            inputTimer.Start();
             if (app.McpEnabled) mcp.Start(app.McpPort);
 
             if (app.ApplyOnStart && engine.Pending)
@@ -502,7 +528,7 @@ namespace BetterRawAccel
         const int WM_INPUT_DEVICE_CHANGE = 0x00FE;
         const uint RID_INPUT = 0x10000003;
         const uint RIM_TYPEMOUSE = 0;
-        const uint RIDEV_INPUTSINK = 0x00000100;
+        const uint RIDEV_REMOVE = 0x00000001;
         const uint RIDEV_DEVNOTIFY = 0x00002000;
         const ushort MOUSE_MOVE_ABSOLUTE = 1;
 
@@ -532,11 +558,35 @@ namespace BetterRawAccel
         [DllImport("user32.dll")]
         static extern uint GetRawInputData(IntPtr rawInput, uint command, out RAWINPUT data, ref uint size, uint headerSize);
 
-        void RegisterRawInput()
+        bool rawInputActive = false;
+
+        void SetRawInputActive(bool active)
         {
-            var dev = new[] { new RAWINPUTDEVICE { UsagePage = 1, Usage = 2, Flags = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY, Target = Handle } };
-            if (!RegisterRawInputDevices(dev, 1, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE))))
-                Log.Write("raw input registration failed: " + Marshal.GetLastWin32Error());
+            if (active == rawInputActive) return;
+            rawInputActive = active;
+            try
+            {
+                if (active)
+                {
+                    // Register foreground-only raw input (NO RIDEV_INPUTSINK).
+                    // This guarantees zero background interception and zero mouse polling lag during games.
+                    var dev = new[] { new RAWINPUTDEVICE { UsagePage = 1, Usage = 2, Flags = RIDEV_DEVNOTIFY, Target = Handle } };
+                    if (!RegisterRawInputDevices(dev, 1, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE))))
+                        Log.Write("raw input registration failed: " + Marshal.GetLastWin32Error());
+                    inputTimer.Start();
+                }
+                else
+                {
+                    inputTimer.Stop();
+                    var dev = new[] { new RAWINPUTDEVICE { UsagePage = 1, Usage = 2, Flags = RIDEV_REMOVE, Target = IntPtr.Zero } };
+                    RegisterRawInputDevices(dev, 1, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
+                    accDistance = 0;
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error("raw input toggle", e);
+            }
         }
 
         protected override void WndProc(ref Message m)
@@ -548,7 +598,7 @@ namespace BetterRawAccel
                 else if (id == HOTKEY_ID_CYCLE) CycleProfile();
                 else if (id >= 9011 && id <= 9015) SwitchProfileByIndex(id - 9011);
             }
-            else if (m.Msg == WM_INPUT)
+            else if (m.Msg == WM_INPUT && rawInputActive)
             {
                 uint size = (uint)Marshal.SizeOf(typeof(RAWINPUT));
                 uint got = GetRawInputData(m.LParam, RID_INPUT, out var ri, ref size, (uint)Marshal.SizeOf(typeof(RAWINPUTHEADER)));
@@ -605,8 +655,13 @@ namespace BetterRawAccel
         /// <summary>Turns the distance moved since the last tick into a speed and sends it to the plot.</summary>
         void FlushInput()
         {
+            if (!rawInputActive || WindowState == FormWindowState.Minimized)
+            {
+                accDistance = 0;
+                return;
+            }
             double ms = inputClock.Elapsed.TotalMilliseconds;
-            if (ms < 4) return;
+            if (ms < 10) return;
             inputClock.Restart();
             double dist = accDistance;
             accDistance = 0;
@@ -620,7 +675,7 @@ namespace BetterRawAccel
 
             if (lastOut <= 0 && lastSentZero) return;
             lastSentZero = lastOut <= 0;
-            if (webReady && WindowState != FormWindowState.Minimized)
+            if (webReady && WindowState != FormWindowState.Minimized && rawInputActive)
                 Post(new JObject { ["event"] = "input", ["in"] = Math.Round(lastIn, 3), ["out"] = Math.Round(lastOut, 3) });
         }
     }

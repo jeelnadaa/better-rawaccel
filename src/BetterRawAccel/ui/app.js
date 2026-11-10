@@ -495,6 +495,10 @@ let speedT = 0, lastInputAt = 0;
 function onEvent(m) {
   switch (m.event) {
     case "input": speedT = m.in; lastInputAt = performance.now(); break;
+    case "window_focus":
+      isAppActive = !!m.active;
+      if (isAppActive) requestFrame();
+      break;
     case "state":
       applyState(m.state);
       if (m.source === "mcp") { blink("mcp"); notice(m.tool, false, "MCP"); }
@@ -996,7 +1000,31 @@ function tag(text, x, y, align) {
   g.fillStyle = col(C.sheet); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(text, Math.round(rx) + 5, Math.round(ry) + h / 2 + .5);
 }
 
-function frame(now) { step(now); requestAnimationFrame(frame); }
+let isAppActive = true, animRunning = false;
+function requestFrame() {
+  if (!animRunning) {
+    animRunning = true;
+    requestAnimationFrame(frame);
+  }
+}
+function frame(now) {
+  if (!isAppActive) {
+    animRunning = false;
+    return;
+  }
+  step(now);
+  if (isAppActive) {
+    requestAnimationFrame(frame);
+  } else {
+    animRunning = false;
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  isAppActive = !document.hidden;
+  if (isAppActive) requestFrame();
+});
+window.addEventListener("focus", () => { isAppActive = true; requestFrame(); });
+window.addEventListener("blur", () => { isAppActive = false; });
 function step(now) {
   const dt = clamp((now - prev) / 1000, 0, 0.05); prev = now;
   const still = RM.matches;
@@ -1282,7 +1310,7 @@ setFont(root.dataset.font, false);
 if (document.fonts) FONTS.forEach(f => document.fonts.load(`400 13px "${f.family}"`).catch(() => {}));
 document.fonts && document.fonts.ready.then(() => { if (S) { placeSel(); fitTiles(); } });
 fit();
-requestAnimationFrame(frame);
+requestFrame();
 
 if (!wv) $("boot").textContent = "This is the interface of Better Raw Accel. Start BetterRawAccel.exe to use it.";
 else rpc("ui_state").then(st => {

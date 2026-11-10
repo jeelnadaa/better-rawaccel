@@ -55,10 +55,25 @@ aside section.wr { margin-top: 0; flex: none; }
 .legend span { display: none; }
 .legend span.on { display: inline; }
 .legend i.y { border-top: 2px solid var(--ink); }
+.legend i.r { border-top: 2px dashed var(--pen); }
 
-/* sheets: profiles, devices, system */
-.sheet { width: min(580px, calc(100vw - 40px)); max-height: calc(100vh - 86px); overflow: auto; scrollbar-width: thin; scrollbar-color: var(--rule2) transparent; }
-.sheet > header { display: flex; align-items: baseline; gap: 10px; padding: 9px 14px; border-bottom: 1.5px solid var(--ink); grid-template-columns: none; position: sticky; top: 0; background: var(--sheet); z-index: 1; }
+/* sheets: profiles, devices, system, calculator */
+.sheet { width: min(580px, calc(100vw - 40px)); max-height: calc(100vh - 86px); overflow: auto; scrollbar-width: thin; scrollbar-color: var(--rule2) transparent; background: var(--pop-bg, var(--sheet)); }
+.sheet > header { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px; border-bottom: 1.5px solid var(--ink); grid-template-columns: none; position: sticky; top: 0; background: color-mix(in srgb, var(--ink) 5%, var(--pop-bg, var(--sheet))); z-index: 2; }
+.notes { background: var(--pop-bg, var(--sheet)); }
+.notes header { background: color-mix(in srgb, var(--ink) 5%, var(--pop-bg, var(--sheet))); }
+
+/* sensitivity and cm/360 calculator */
+.sens-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
+.sens-card { padding: 8px 10px; border: 1px solid var(--rule2); background: color-mix(in srgb, var(--ink) 3%, transparent); }
+.sens-card .k { margin-bottom: 3px; font-size: 10px; }
+.sens-card .v { font: 600 16px var(--mono); color: var(--pen); }
+.sens-card .v small { font: 400 11px var(--mono); color: var(--ink3); margin-left: 4px; }
+.sens-table { width: 100%; border-collapse: collapse; margin-top: 8px; font: 400 11.5px var(--mono); }
+.sens-table th, .sens-table td { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--rule); }
+.sens-table th { font-weight: var(--lb-w); font-size: 9.5px; text-transform: uppercase; color: var(--ink3); letter-spacing: .08em; }
+.sens-table td.num { text-align: right; }
+.sens-table tr:hover td { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .sheet > header h3 { font-size: calc(var(--lb-sz) + 1.5px); font-weight: var(--lb-w); font-stretch: var(--lb-s); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 .sheet > header span { font: 400 10px var(--mono); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet > header button { margin-left: auto; border: 1px solid var(--rule2); background: transparent; padding: 2px 7px; font: 400 10px var(--mono); color: var(--ink2); cursor: pointer; white-space: nowrap; }

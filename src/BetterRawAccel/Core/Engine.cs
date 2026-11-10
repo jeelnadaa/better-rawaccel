@@ -44,6 +44,46 @@ namespace BetterRawAccel.Core
         public bool Pending => Edit.ToJSON() != activeJson;
         public bool CanUndo => undo.Count > 0;
         public bool CanRedo => redo.Count > 0;
+        public SpeedHistogram Histogram { get; } = new SpeedHistogram();
+        public ReferenceCurveData PinnedCurve { get; private set; }
+
+        public void PinReferenceCurve(string profileNameOrSource = null)
+        {
+            Profile p;
+            string label;
+            if (string.IsNullOrEmpty(profileNameOrSource) || profileNameOrSource == "editing")
+            {
+                p = Current;
+                label = Current.name + " (editing)";
+            }
+            else if (profileNameOrSource == "driver")
+            {
+                p = DriverTwin() ?? Active.profiles[0];
+                label = p.name + " (driver)";
+            }
+            else
+            {
+                p = Edit.profiles.FirstOrDefault(x => string.Equals(x.name, profileNameOrSource, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidOperationException("Profile not found: " + profileNameOrSource);
+                label = p.name;
+            }
+
+            if (Validate(p) != null) throw new InvalidOperationException("Could not calculate curve for: " + label);
+            bool whole = p.inputSpeedArgs.combineMagnitudes;
+            PinnedCurve = new ReferenceCurveData
+            {
+                Name = label,
+                Points = Sample(p, CurvePoints, MaxSpeed, false),
+                PointsY = whole ? null : Sample(p, CurvePoints, MaxSpeed, true),
+                MaxSpeed = MaxSpeed,
+                PinnedAt = DateTime.UtcNow
+            };
+        }
+
+        public void ClearReferenceCurve()
+        {
+            PinnedCurve = null;
+        }
 
         // ---------------------------------------------------------------- start-up
 
@@ -415,7 +455,7 @@ namespace BetterRawAccel.Core
             return Sample(p, 2, speed, yAxis)[1];
         }
 
-        static JArray Arr(double[] a) => a == null ? null : new JArray(a.Select(v => (object)Math.Round(v, 5)));
+        public static JArray Arr(double[] a) => a == null ? null : new JArray(a.Select(v => (object)Math.Round(v, 5)));
 
         public JObject Curve(Profile p, int n, double maxSpeed)
         {
@@ -509,6 +549,8 @@ namespace BetterRawAccel.Core
                 ["canRedo"] = CanRedo,
                 ["maxSpeed"] = MaxSpeed,
                 ["curve"] = Curve(p, CurvePoints, MaxSpeed),
+                ["pinnedCurve"] = PinnedCurve?.ToDto(),
+                ["histogram"] = Histogram.ToDto(MaxSpeed),
             };
             if (lite) return st;
 
@@ -786,6 +828,99 @@ namespace BetterRawAccel.Core
                 a.data = data;
             }
             return a;
+        }
+    }
+
+    public sealed class ReferenceCurveData
+    {
+        public string Name { get; set; }
+        public double[] Points { get; set; }
+        public double[] PointsY { get; set; }
+        public double MaxSpeed { get; set; }
+        public DateTime PinnedAt { get; set; }
+
+        public JObject ToDto() => new JObject
+        {
+            ["name"] = Name,
+            ["x"] = Engine.Arr(Points),
+            ["y"] = PointsY != null ? Engine.Arr(PointsY) : null,
+            ["maxSpeed"] = MaxSpeed,
+            ["pinnedAt"] = PinnedAt.ToString("HH:mm:ss")
+        };
+    }
+
+    public sealed class SpeedHistogram
+    {
+        const int BinCount = 100;
+        readonly int[] bins = new int[BinCount];
+        readonly object sync = new object();
+        long totalCount;
+        double maxObservedSpeed;
+
+        public void Record(double speed, double maxSpeed)
+        {
+            if (speed <= 0 || maxSpeed <= 0) return;
+            lock (sync)
+            {
+                totalCount++;
+                if (speed > maxObservedSpeed) maxObservedSpeed = speed;
+                int idx = (int)Math.Floor((speed / maxSpeed) * BinCount);
+                if (idx < 0) idx = 0;
+                if (idx >= BinCount) idx = BinCount - 1;
+                bins[idx]++;
+            }
+        }
+
+        public void Reset()
+        {
+            lock (sync)
+            {
+                Array.Clear(bins, 0, BinCount);
+                totalCount = 0;
+                maxObservedSpeed = 0;
+            }
+        }
+
+        public JObject ToDto(double maxSpeed)
+        {
+            lock (sync)
+            {
+                var binArray = new JArray();
+                double binWidth = maxSpeed > 0 ? maxSpeed / BinCount : 1.0;
+                double median = 0, p90 = 0, p99 = 0;
+                long running = 0;
+                long target50 = totalCount / 2;
+                long target90 = (long)(totalCount * 0.90);
+                long target99 = (long)(totalCount * 0.99);
+
+                for (int i = 0; i < BinCount; i++)
+                {
+                    double speed = Math.Round((i + 0.5) * binWidth, 3);
+                    int count = bins[i];
+                    running += count;
+                    if (median == 0 && running >= target50 && totalCount > 0) median = speed;
+                    if (p90 == 0 && running >= target90 && totalCount > 0) p90 = speed;
+                    if (p99 == 0 && running >= target99 && totalCount > 0) p99 = speed;
+
+                    binArray.Add(new JObject
+                    {
+                        ["speed"] = speed,
+                        ["count"] = count,
+                        ["percent"] = totalCount > 0 ? Math.Round((double)count / totalCount * 100, 2) : 0
+                    });
+                }
+
+                return new JObject
+                {
+                    ["totalSamples"] = totalCount,
+                    ["peakSpeed"] = Math.Round(maxObservedSpeed, 3),
+                    ["medianSpeed"] = Math.Round(median, 3),
+                    ["p90Speed"] = Math.Round(p90, 3),
+                    ["p99Speed"] = Math.Round(p99, 3),
+                    ["maxSpeed"] = maxSpeed,
+                    ["bins"] = binArray
+                };
+            }
         }
     }
 }

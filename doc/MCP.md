@@ -105,9 +105,14 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 - "Show me my current Raw Accel settings."
 - "Switch to Natural with a limit of 2 and show me the window."
 - "What sensitivity do I get at 30 counts/ms? And at 60?"
+- "What is my cm/360 in CS2 at 800 DPI and sens 1.2, and what is the equivalent sens in Valorant?"
+- "Pin my current curve as a reference so I can compare it to a steeper curve."
+- "Show me my speed histogram to see where my hand speed lands on the curve."
+- "Share my current profile as a code."
+- "Switch the theme to Obsidian or Cyberpunk."
 - "Make a profile called `tracking` copied from `default`, with a lower cap."
 - "I overshoot on fast flicks. Look at my curve and suggest a change, but don't write it yet."
-- "Open the devices panel."
+- "Open the sensitivity calculator panel."
 
 ## How it behaves
 
@@ -136,8 +141,14 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 | `list_profiles`, `select_profile`, `create_profile`, `rename_profile`, `delete_profile` | Manage profiles |
 | `list_devices`, `set_device`, `set_default_device`, `remove_device` | Per-mouse DPI, polling rate, profile |
 | `export_settings`, `import_settings` | Settings as Raw Accel `settings.json` text |
-| `get_app_settings`, `set_app_settings` | Theme, typeface, plot view and scale, start-up, updates |
-| `show_panel` | Open or close a panel in the window |
+| `export_profile_code`, `import_profile_code` | Share and import individual profiles as compact short codes (`RA1:...`) |
+| `calculate_cm360` | Calculate cm/360, in/360, curve range (slowest tracking to fastest flick), and game equivalents |
+| `convert_sensitivity` | Convert sensitivity across games (Source/CS2, Valorant, Overwatch 2, Fortnite, Rainbow Six Siege) and DPIs |
+| `pin_reference_curve`, `clear_reference_curve`, `get_reference_curve` | Pin and overlay a reference baseline curve on the plot to compare live edits |
+| `get_speed_histogram`, `reset_speed_histogram` | Retrieve hand speed distribution statistics (median, 90th percentile, peak) and bucket counts |
+| `export_plot_image` | Export the plot canvas image as a PNG |
+| `get_app_settings`, `set_app_settings` | Theme (14 light and dark themes), typeface, plot view and scale, start-up, updates |
+| `show_panel` | Open or close a panel (`profiles`, `devices`, `system`, `help`, `themes`, `fonts`, `cm360`, `none`) |
 | `check_for_updates`, `install_update` | Look for and install a newer release |
 
 Units: speeds are counts per millisecond. Sensitivity is a multiplier where 1 means unchanged.

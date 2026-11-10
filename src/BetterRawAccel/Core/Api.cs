@@ -37,7 +37,10 @@ namespace BetterRawAccel.Core
     /// </summary>
     public sealed class Api
     {
-        static readonly string[] Themes = { "paper", "ledger", "blueprint", "graphite", "phosphor" };
+        static readonly string[] Themes = {
+            "paper", "ledger", "parchment", "millimeter", "technical", "chalk",
+            "blueprint", "graphite", "phosphor", "obsidian", "midnight", "radar", "cyberpunk", "solarized"
+        };
         static readonly string[] Fonts = { "satoshi", "cabinet", "archivo" };
 
         readonly Engine engine;
@@ -276,8 +279,8 @@ namespace BetterRawAccel.Core
 
             Add("get_app_settings", "Window preferences: theme, typeface, plot scale, updates, start-up, MCP.", null, false, a => AppSettingsDto());
 
-            Add("set_app_settings", "Change window preferences, including which plot is shown (plotView). Themes: paper, ledger, blueprint, graphite, phosphor. Fonts: satoshi, cabinet, archivo.",
-                S("{'type':'object','properties':{'theme':{'type':'string','enum':['paper','ledger','blueprint','graphite','phosphor']},'font':{'type':'string','enum':['satoshi','cabinet','archivo']}," +
+            Add("set_app_settings", "Change window preferences, including which plot is shown (plotView). Themes: paper, ledger, parchment, millimeter, technical, chalk, blueprint, graphite, phosphor, obsidian, midnight, radar, cyberpunk, solarized. Fonts: satoshi, cabinet, archivo.",
+                S("{'type':'object','properties':{'theme':{'type':'string','enum':['paper','ledger','parchment','millimeter','technical','chalk','blueprint','graphite','phosphor','obsidian','midnight','radar','cyberpunk','solarized']},'font':{'type':'string','enum':['satoshi','cabinet','archivo']}," +
                   "'plotDpi':{'type':'integer','description':'mouse DPI; only sets the plot x range (DPI x 0.05 counts/ms)'},'plotPollRate':{'type':'integer'}," +
                   "'autoUpdate':{'type':'boolean'},'applyOnStart':{'type':'boolean','description':'write settings.json to the driver when the app starts'}," +
                   "'startWithWindows':{'type':'boolean','description':'apply settings at logon using the bundled writer.exe'}," +
@@ -308,14 +311,126 @@ namespace BetterRawAccel.Core
                 new JObject { ["__image"] = await host.CaptureWindowPngBase64(), ["mimeType"] = "image/png" });
 
             Add("show_panel", "Open one of the window's panels so the person at the PC can see it, or close them with none.",
-                S("{'type':'object','required':['panel'],'properties':{'panel':{'type':'string','enum':['profiles','devices','system','help','themes','fonts','none']}}}"),
+                S("{'type':'object','required':['panel'],'properties':{'panel':{'type':'string','enum':['profiles','devices','system','help','themes','fonts','cm360','none']}}}"),
                 false, a =>
                 {
                     var panel = Req(a, "panel").ToLowerInvariant();
-                    if (Array.IndexOf(new[] { "profiles", "devices", "system", "help", "themes", "fonts", "none" }, panel) < 0)
+                    if (Array.IndexOf(new[] { "profiles", "devices", "system", "help", "themes", "fonts", "cm360", "none" }, panel) < 0)
                         throw new InvalidOperationException("Unknown panel: " + panel);
                     host.ShowPanel(panel);
                     return new JObject { ["panel"] = panel };
+                });
+
+            Add("calculate_cm360",
+                "Calculate cm/360, in/360, curve range (slowest to fastest cm/360), and equivalent sensitivities across games (CS2/Source/Apex, Valorant, Overwatch 2, Fortnite, Rainbow Six Siege).",
+                S("{'type':'object','properties':{'dpi':{'type':'integer','description':'mouse DPI, defaults to app plot DPI or 800'},'game':{'type':'string','enum':['source','cs2','csgo','apex','quake','titanfall','teamfortress2','callofduty','cod','warzone','valorant','overwatch','overwatch2','fortnite','rainbow6','r6','destiny2','custom'],'description':'defaults to source / cs2'},'game_sens':{'type':'number','description':'in-game sensitivity slider value, defaults to 1.0'},'yaw':{'type':'number','description':'custom yaw (degrees/count) when game is custom'},'speed':{'type':'number','description':'input speed in counts/ms to evaluate effective cm/360 at, defaults to 0'}}}"),
+                false, a =>
+                {
+                    double dpi = (double?)a["dpi"] ?? engine.App.PlotDpi;
+                    string game = (string)a["game"] ?? "source";
+                    double sens = (double?)a["game_sens"] ?? 1.0;
+                    double yaw = (double?)a["yaw"] ?? 0;
+                    double? speed = (double?)a["speed"];
+                    return SensitivityCalculator.Analyze(engine, engine.Current, dpi, game, sens, yaw, speed);
+                });
+
+            Add("convert_sensitivity",
+                "Convert sensitivity from one game and DPI to another game and DPI.",
+                S("{'type':'object','required':['from_game','from_sens'],'properties':{'from_game':{'type':'string'},'from_sens':{'type':'number'},'from_dpi':{'type':'number'},'to_game':{'type':'string'},'to_dpi':{'type':'number'},'custom_from_yaw':{'type':'number'},'custom_to_yaw':{'type':'number'}}}"),
+                false, a =>
+                {
+                    string fromGame = Req(a, "from_game");
+                    double fromSens = (double?)a["from_sens"] ?? throw new InvalidOperationException("from_sens required");
+                    double fromDpi = (double?)a["from_dpi"] ?? engine.App.PlotDpi;
+                    string toGame = (string)a["to_game"] ?? "source";
+                    double toDpi = (double?)a["to_dpi"] ?? fromDpi;
+                    double fromYaw = (double?)a["custom_from_yaw"] ?? 0;
+                    double toYaw = (double?)a["custom_to_yaw"] ?? 0;
+                    double converted = SensitivityCalculator.ConvertSens(fromGame, fromSens, fromDpi, toGame, toDpi, fromYaw, toYaw);
+                    double cm = SensitivityCalculator.Cm360(toDpi, converted, SensitivityCalculator.GetYaw(toGame, toYaw));
+                    return new JObject
+                    {
+                        ["fromGame"] = fromGame,
+                        ["fromSens"] = fromSens,
+                        ["fromDpi"] = fromDpi,
+                        ["toGame"] = toGame,
+                        ["toSens"] = Math.Round(converted, 4),
+                        ["toDpi"] = toDpi,
+                        ["cm360"] = Math.Round(cm, 2),
+                        ["in360"] = Math.Round(cm / 2.54, 2)
+                    };
+                });
+
+            Add("pin_reference_curve",
+                "Pin the current curve or a specific profile as a reference overlay on the plot to compare with active edits.",
+                S("{'type':'object','properties':{'source':{'type':'string','description':'editing, driver, or profile name (default: editing)'}}}"),
+                true, a =>
+                {
+                    engine.PinReferenceCurve((string)a["source"]);
+                    return engine.PinnedCurve?.ToDto() ?? new JObject();
+                });
+
+            Add("clear_reference_curve",
+                "Remove the pinned reference curve overlay from the plot.",
+                null, true, a =>
+                {
+                    engine.ClearReferenceCurve();
+                    return new JObject { ["cleared"] = true };
+                });
+
+            Add("get_reference_curve",
+                "Get the pinned reference curve if one is active.",
+                null, false, a => engine.PinnedCurve?.ToDto() ?? new JObject { ["pinned"] = false });
+
+            Add("get_speed_histogram",
+                "Get the hand speed distribution recorded during mouse movement, including median, 90th percentile, peak speed, and bucket percentages.",
+                null, false, a => engine.Histogram.ToDto(engine.MaxSpeed));
+
+            Add("reset_speed_histogram",
+                "Clear accumulated hand speed distribution data and restart recording.",
+                null, false, a =>
+                {
+                    engine.Histogram.Reset();
+                    return new JObject { ["reset"] = true };
+                });
+
+            Add("export_profile_code",
+                "Export a profile as a compact shareable short code (e.g. RA1:...) that can be shared or pasted into another Better Raw Accel instance.",
+                S("{'type':'object','properties':{'profile':{'type':['string','integer'],'description':'name or index, defaults to current profile'}}}"),
+                false, a =>
+                {
+                    var p = a["profile"] != null ? engine.Edit.profiles[engine.FindProfile(a["profile"])] : engine.Current;
+                    string code = ProfileSharing.ExportCode(p);
+                    return new JObject { ["name"] = p.name, ["code"] = code };
+                });
+
+            Add("import_profile_code",
+                "Import and validate a profile from a share code (RA1:...). Adds the profile to your profiles list and selects it.",
+                S("{'type':'object','required':['code'],'properties':{'code':{'type':'string'},'name':{'type':'string','description':'optional new name for imported profile'}}}"),
+                true, a =>
+                {
+                    string code = Req(a, "code");
+                    var patch = ProfileSharing.ImportCode(code);
+                    string name = (string)a["name"] ?? (string)patch["name"] ?? "imported";
+                    int count = 1;
+                    string targetName = name;
+                    while (engine.Edit.profiles.Any(p => string.Equals(p.name, targetName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        count++;
+                        targetName = $"{name} ({count})";
+                    }
+                    engine.CreateProfile(targetName, null);
+                    patch["name"] = targetName;
+                    engine.UpdateProfile(patch);
+                    return engine.Summary();
+                });
+
+            Add("export_plot_image",
+                "Export the current plot window as a PNG base64 image.",
+                null, false, async a =>
+                {
+                    string b64 = await host.CaptureWindowPngBase64();
+                    return new JObject { ["__image"] = b64, ["mimeType"] = "image/png" };
                 });
 
             // ---- window-only helpers

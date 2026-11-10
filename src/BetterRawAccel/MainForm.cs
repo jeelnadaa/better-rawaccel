@@ -80,9 +80,18 @@ namespace BetterRawAccel
             switch (theme)
             {
                 case "ledger": return ColorTranslator.FromHtml("#C7D1BC");
+                case "parchment": return ColorTranslator.FromHtml("#D4C7B0");
+                case "millimeter": return ColorTranslator.FromHtml("#DDD8CD");
+                case "technical": return ColorTranslator.FromHtml("#C8D1D9");
+                case "chalk": return ColorTranslator.FromHtml("#CED5D8");
                 case "blueprint": return ColorTranslator.FromHtml("#0A2140");
                 case "graphite": return ColorTranslator.FromHtml("#0D0D0C");
                 case "phosphor": return ColorTranslator.FromHtml("#070604");
+                case "obsidian": return ColorTranslator.FromHtml("#000000");
+                case "midnight": return ColorTranslator.FromHtml("#060A12");
+                case "radar": return ColorTranslator.FromHtml("#020A04");
+                case "cyberpunk": return ColorTranslator.FromHtml("#0D0A14");
+                case "solarized": return ColorTranslator.FromHtml("#00191F");
                 default: return ColorTranslator.FromHtml("#D9D5C9");
             }
         }
@@ -457,6 +466,7 @@ namespace BetterRawAccel
 
             lastOut = dist / Math.Min(ms, 100);
             lastIn = lastOut > 0 ? engine.InputFromOutput(lastOut) : 0;
+            if (lastIn > 0) engine.Histogram.Record(lastIn, engine.MaxSpeed);
             long now = Environment.TickCount;
             if (lastIn >= peakIn) { peakIn = lastIn; peakAt = now; }
             else if (now - peakAt > 3000) peakIn = lastIn;

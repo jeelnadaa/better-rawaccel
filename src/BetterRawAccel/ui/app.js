@@ -33,11 +33,20 @@ if (wv) wv.addEventListener("message", e => {
 
 // ---------- static presentation data ----------
 const THEMES = [
-  { id: "paper",     name: "Paper",     kind: "light" },
-  { id: "ledger",    name: "Ledger",    kind: "light" },
-  { id: "blueprint", name: "Blueprint", kind: "dark" },
-  { id: "graphite",  name: "Graphite",  kind: "dark" },
-  { id: "phosphor",  name: "Phosphor",  kind: "dark" },
+  { id: "paper",      name: "Paper",      kind: "light" },
+  { id: "ledger",     name: "Ledger",     kind: "light" },
+  { id: "parchment",  name: "Parchment",  kind: "light" },
+  { id: "millimeter", name: "Millimeter", kind: "light" },
+  { id: "technical",  name: "Technical",  kind: "light" },
+  { id: "chalk",      name: "Chalk",      kind: "light" },
+  { id: "blueprint",  name: "Blueprint",  kind: "dark" },
+  { id: "graphite",   name: "Graphite",   kind: "dark" },
+  { id: "phosphor",   name: "Phosphor",   kind: "dark" },
+  { id: "obsidian",   name: "Obsidian",   kind: "dark" },
+  { id: "midnight",   name: "Midnight",   kind: "dark" },
+  { id: "radar",      name: "Radar",      kind: "dark" },
+  { id: "cyberpunk",  name: "Cyberpunk",  kind: "dark" },
+  { id: "solarized",  name: "Solarized",  kind: "dark" },
 ];
 const FONTS = [
   { id: "satoshi", name: "Satoshi",         family: "Satoshi",         lic: "ITF FFL" },
@@ -66,6 +75,9 @@ const TIPS = {
   profile: ["Profile", "The profile being edited. Open to switch, add, duplicate, rename or delete profiles."],
   device:  ["Device", "Plot scale, and per-mouse settings: DPI, polling rate, profile, or leave a mouse alone."],
   driver:  ["Driver", "Connection to the Raw Accel driver. The square blinks on a write or an MCP call. Open for start-up, MCP, updates, import and export."],
+  cm360:   ["Sensitivity & cm/360", "Calculate cm/360, compare sensitivities across games (Source/CS2, Valorant, Overwatch 2, Apex, Fortnite, etc.), and view the effective range of your curve."],
+  pin:     ["Pin reference curve", "Overlay a snapshot of the current curve or another profile on the plot to compare changes directly."],
+  hist:    ["Speed histogram", "Shows where your hand moves during tracking and flicks as a distribution under the curve."],
 };
 
 // ---------- state ----------
@@ -418,12 +430,34 @@ function updateStatus() {
   st.classList.toggle("pend", pend); st.textContent = text; st.title = text;
   const ghost = pend && hasDriver && pending !== -2 && !!dp;
   ghostOn = ghost;
+  const hasRef = !!(S.pinnedCurve && S.pinnedCurve.x);
+  const refEl = legend.querySelector('[data-l="ref"]');
+  if (refEl) {
+    refEl.classList.toggle("on", hasRef);
+    if (hasRef && $("refLabel")) $("refLabel").textContent = S.pinnedCurve.name || "reference";
+  }
   legend.querySelector('[data-l="drv"]').classList.toggle("on", ghost);
   legend.querySelector('[data-l="y"]').classList.toggle("on", hasY);
-  legend.querySelector('[data-l="edit"]').classList.toggle("on", ghost || hasY);
-  legend.classList.toggle("on", ghost || hasY);
+  legend.querySelector('[data-l="edit"]').classList.toggle("on", ghost || hasY || hasRef);
+  legend.classList.toggle("on", ghost || hasY || hasRef);
+  updateCm360Readout();
 }
-let ghostOn = false;
+let ghostOn = false, showHistogram = false;
+
+$("pinBtn").onclick = () => call("pin_reference_curve", { source: "editing" });
+$("unpinBtn").onclick = () => call("clear_reference_curve", {});
+$("histBtn").onclick = () => {
+  showHistogram = !showHistogram;
+  $("histBtn").setAttribute("aria-pressed", showHistogram);
+};
+$("exportPngBtn").onclick = () => {
+  const url = cv.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.download = `RawAccel-${(S?.profile?.name || "curve").toLowerCase()}.png`;
+  a.href = url;
+  a.click();
+  notice("Plot image exported as PNG", false);
+};
 
 async function write() {
   if (writing || !S) return;
@@ -473,7 +507,7 @@ function onEvent(m) {
       break;
     case "devices": if (S) { S.devices = m.devices; refreshSheet(); } break;
     case "panel":
-      { const b = { profiles: $("profBtn"), devices: $("devBtn"), system: $("sysBtn"), help: helpBtn, themes: themeBtn, fonts: fontBtn }[m.panel];
+      { const b = { profiles: $("profBtn"), devices: $("devBtn"), system: $("sysBtn"), help: helpBtn, themes: themeBtn, fonts: fontBtn, cm360: $("cm360Btn") }[m.panel];
         closePop(); if (b) b.click(); }
       break;
   }
@@ -481,7 +515,7 @@ function onEvent(m) {
 
 // ---------- callout tooltips ----------
 const tip = $("tip"), lead = $("lead"), PREF = { mode: "right", label: "right", value: "right", ruler: "right", write: "right", status: "right", undo: "right", revert: "right", axis: "right",
-  in: "top", sens: "top", out: "top", peak: "top", legend: "top", view: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom", profile: "bottom", device: "bottom" };
+  in: "top", sens: "top", out: "top", peak: "top", legend: "top", view: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom", profile: "bottom", device: "bottom", cm360: "bottom", pin: "bottom", hist: "bottom" };
 const TIP_NO = Object.fromEntries(Object.keys(TIPS).map((k, i) => [k, String(i + 1).padStart(2, "0")]));
 let tipEl = null, tipTimer = 0, hideTimer = 0;
 function showTip(el) {
@@ -545,7 +579,7 @@ document.addEventListener("pointerdown", hideTip, true);
 addEventListener("resize", hideTip);
 
 // ---------- popovers: menus, notes, sheets ----------
-const menuEl = $("menu"), notesEl = $("notes"), sheetEl = $("sheet"), helpBtn = $("helpBtn"), themeBtn = $("themeBtn"), fontBtn = $("fontBtn");
+const menuEl = $("menu"), notesEl = $("notes"), sheetEl = $("sheet"), helpBtn = $("helpBtn"), themeBtn = $("themeBtn"), fontBtn = $("fontBtn"), cm360Btn = $("cm360Btn"), scrimEl = $("scrim");
 let popOwner = null, sheetRender = null;
 function placePop(pop, btn, alignRight) {
   const r = btn.getBoundingClientRect(), w = pop.offsetWidth, M = 8;
@@ -556,16 +590,19 @@ function placePop(pop, btn, alignRight) {
 function closePop(refocus) {
   if (!popOwner) return;
   menuEl.classList.remove("on"); notesEl.classList.remove("on"); sheetEl.classList.remove("on");
+  if (scrimEl) scrimEl.classList.remove("on");
   popOwner.setAttribute("aria-expanded", "false");
   if (refocus) popOwner.focus();
   popOwner = null; sheetRender = null;
 }
+if (scrimEl) scrimEl.onclick = () => closePop(true);
 function openMenu(btn, title, items, current, pick) {
   if (popOwner === btn) { closePop(); return; }
   closePop(); hideTip();
   menuEl.innerHTML = `<div class="k">${title}</div>` + items.map(it =>
     `<button role="menuitemradio" aria-checked="${it.id === current}" data-id="${it.id}" style="${it.style || ""}">${it.html}</button>`).join("");
   menuEl.classList.add("on"); popOwner = btn; btn.setAttribute("aria-expanded", "true");
+  if (scrimEl) scrimEl.classList.add("on");
   placePop(menuEl, btn, true);
   const list = [...menuEl.querySelectorAll("button")];
   list.forEach(b => b.onclick = () => { pick(b.dataset.id); closePop(true); });
@@ -581,6 +618,7 @@ function toggleNotes() {
   if (popOwner === helpBtn) { closePop(true); return; }
   closePop(); hideTip();
   notesEl.classList.add("on"); popOwner = helpBtn; helpBtn.setAttribute("aria-expanded", "true");
+  if (scrimEl) scrimEl.classList.add("on");
   placePop(notesEl, helpBtn, false);
   helpBtn.classList.remove("new");
   if (S && !S.settings.helpSeen) rpc("set_app_settings", { helpSeen: true }).catch(() => {});
@@ -600,6 +638,7 @@ function openSheet(btn, title, sub, renderBody) {
   sheetEl.querySelector("[data-x]").onclick = () => closePop(true);
   sheetEl.setAttribute("aria-label", title);
   popOwner = btn; btn.setAttribute("aria-expanded", "true");
+  if (scrimEl) scrimEl.classList.add("on");
   sheetRender = () => renderBody(sheetEl.querySelector(".body"));
   sheetRender();
   sheetEl.classList.add("on");
@@ -614,6 +653,104 @@ function refreshSheet() {
 const call = (method, params, done) => flushNow().then(() => rpc(method, params)).then(r => { if (done) done(r); return r; }).catch(fail);
 const intOf = el => { const v = parseInt(el.value, 10); return isFinite(v) ? v : null; };
 
+// sensitivity and cm/360
+let sensCalc = { game: "source", gameSens: 1.0, dpi: 0 };
+function updateCm360Readout() {
+  const el = $("cm360V");
+  if (!el || !S) return;
+  const dpi = sensCalc.dpi || S.settings?.plotDpi || 1600;
+  const yaws = { source: 0.022, cs2: 0.022, valorant: 0.07, overwatch: 0.0066, overwatch2: 0.0066, fortnite: 0.005555, rainbow6: 0.00572 };
+  const yaw = yaws[sensCalc.game] || 0.022;
+  const baseCm = (360.0 / (sensCalc.gameSens * yaw * dpi)) * 2.54;
+  const profSens = S.profile?.sens || 1.0;
+  const effCm = baseCm / profSens;
+  el.textContent = isFinite(effCm) && effCm > 0 ? `${effCm.toFixed(1)} cm` : "calc";
+}
+
+if (cm360Btn) {
+  cm360Btn.onclick = () => openSheet(cm360Btn, "Sensitivity & cm/360", "angles · game conversions · curve range", body => {
+    const dpi = sensCalc.dpi || S.settings?.plotDpi || 1600;
+    const sens = sensCalc.gameSens;
+    const game = sensCalc.game;
+
+    rpc("calculate_cm360", { dpi: dpi, game: game, game_sens: sens, speed: speed }).then(res => {
+      body.innerHTML = `
+        <div class="grp">
+          <div class="row">
+            <label class="k" style="width:85px">Game</label>
+            <select class="fi w" id="sensGame">
+              <option value="source" ${game === "source" ? "selected" : ""}>CS2 / Source / Apex / Quake</option>
+              <option value="valorant" ${game === "valorant" ? "selected" : ""}>Valorant</option>
+              <option value="overwatch2" ${game === "overwatch2" ? "selected" : ""}>Overwatch 2</option>
+              <option value="fortnite" ${game === "fortnite" ? "selected" : ""}>Fortnite</option>
+              <option value="rainbow6" ${game === "rainbow6" ? "selected" : ""}>Rainbow Six Siege</option>
+            </select>
+          </div>
+          <div class="row">
+            <label class="k" style="width:85px">In-game sens</label>
+            <input class="fi n" id="sensVal" type="number" step="0.01" min="0.001" value="${sens}">
+            <span class="sp"></span>
+            <label class="k" style="width:40px">DPI</label>
+            <input class="fi n" id="sensDpi" type="number" step="50" min="100" value="${dpi}">
+          </div>
+          <div class="sens-grid">
+            <div class="sens-card">
+              <div class="k">Base 360 distance</div>
+              <div class="v">${res.baseCm360} <small>cm</small></div>
+              <small class="hint">${res.baseIn360} in · unaccelerated</small>
+            </div>
+            <div class="sens-card">
+              <div class="k">At current speed (${res.evalSpeed} c/ms)</div>
+              <div class="v">${res.currentCm360} <small>cm</small></div>
+              <small class="hint">${res.currentMultiplier}× multiplier</small>
+            </div>
+            <div class="sens-card">
+              <div class="k">Fastest flick (max speed)</div>
+              <div class="v">${res.fastestFlickCm360} <small>cm</small></div>
+              <small class="hint">at upper limit / cap</small>
+            </div>
+            <div class="sens-card">
+              <div class="k">Slowest tracking (near 0)</div>
+              <div class="v">${res.slowestTrackingCm360} <small>cm</small></div>
+              <small class="hint">micro-adjustment floor</small>
+            </div>
+          </div>
+        </div>
+        <div class="grp">
+          <span class="k">Equivalent sensitivities in other games</span>
+          <table class="sens-table">
+            <thead>
+              <tr><th>Game</th><th class="num">Yaw</th><th class="num">Sens at ${dpi} DPI</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>CS2 / Source / Apex Legends</td><td class="num">0.0220</td><td class="num"><b>${res.equivalents.source_cs2_apex}</b></td></tr>
+              <tr><td>Valorant</td><td class="num">0.0700</td><td class="num"><b>${res.equivalents.valorant}</b></td></tr>
+              <tr><td>Overwatch 2</td><td class="num">0.0066</td><td class="num"><b>${res.equivalents.overwatch2}</b></td></tr>
+              <tr><td>Fortnite</td><td class="num">0.0055</td><td class="num"><b>${res.equivalents.fortnite}</b></td></tr>
+              <tr><td>Rainbow Six Siege</td><td class="num">0.0057</td><td class="num"><b>${res.equivalents.rainbow6}</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      const gEl = body.querySelector("#sensGame");
+      const vEl = body.querySelector("#sensVal");
+      const dEl = body.querySelector("#sensDpi");
+
+      const recalc = () => {
+        sensCalc.game = gEl.value;
+        sensCalc.gameSens = parseFloat(vEl.value) || 1.0;
+        sensCalc.dpi = parseInt(dEl.value, 10) || dpi;
+        updateCm360Readout();
+        refreshSheet();
+      };
+      gEl.onchange = recalc;
+      vEl.onchange = recalc;
+      dEl.onchange = recalc;
+    }).catch(fail);
+  });
+}
+
 // profiles
 $("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "the first one is the default for every device", body => {
   const cur = S.profile.name, inDrv = new Set(S.driverProfiles);
@@ -622,6 +759,7 @@ $("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "the first one 
         `<button role="radio" aria-checked="${i === S.sel}" data-i="${i}"><i>${String(i + 1).padStart(2, "0")}</i>${esc(n)}<span class="x">${i === 0 ? "default · " : ""}${inDrv.has(n) ? "in driver" : "not written"}</span></button>`).join("")}</div>
       <div class="row"><input class="fi w" id="pfName" maxlength="200" spellcheck="false" value="${esc(cur)}" aria-label="Profile name"><button class="bt" data-a="rename">Rename</button></div>
       <div class="row"><button class="bt" data-a="new">New</button><button class="bt" data-a="dup">Duplicate</button><span class="sp"></span><button class="bt q" data-a="del" ${S.sel === 0 ? "disabled" : ""}>Delete</button></div>
+      <div class="row" style="margin-top:6px"><button class="bt q" data-a="share">Copy share code</button><button class="bt q" data-a="import">Import share code</button></div>
     </div>
     <div class="grp"><p>Each profile is a full set of curve and output settings. Assign a profile to a mouse under Device. Changes here reach the driver when you write.</p></div>`;
   const unique = base => { let n = base, i = 2; const has = x => S.profiles.some(p => p.toLowerCase() === x.toLowerCase()); while (has(n)) n = `${base} ${i++}`; return n; };
@@ -631,6 +769,19 @@ $("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "the first one 
   body.querySelector('[data-a="new"]').onclick = () => call("create_profile", { name: unique("profile") });
   body.querySelector('[data-a="dup"]').onclick = () => call("create_profile", { name: unique(cur + " copy"), copy_from: S.sel });
   body.querySelector('[data-a="del"]').onclick = () => call("delete_profile", { profile: S.sel });
+  body.querySelector('[data-a="share"]').onclick = () => {
+    rpc("export_profile_code", { profile: S.sel }).then(res => {
+      if (res && res.code) {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(res.code).then(() => notice("Share code copied to clipboard", false)).catch(() => prompt("Profile share code:", res.code));
+        } else prompt("Profile share code:", res.code);
+      }
+    }).catch(fail);
+  };
+  body.querySelector('[data-a="import"]').onclick = () => {
+    const code = prompt("Paste profile share code (RA1:...):");
+    if (code && code.trim()) call("import_profile_code", { code: code.trim() });
+  };
 });
 
 // devices
@@ -892,6 +1043,44 @@ function step(now) {
 
   // Curve region (clipped to plot).
   g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
+
+  // Speed histogram under the curve
+  if (showHistogram && S && S.histogram && S.histogram.bins && S.histogram.totalSamples > 0) {
+    const bins = S.histogram.bins;
+    const binW = pw / bins.length;
+    let maxPct = 0;
+    for (let i = 0; i < bins.length; i++) if (bins[i].percent > maxPct) maxPct = bins[i].percent;
+    if (maxPct > 0) {
+      g.fillStyle = col(C.pen, 0.25);
+      for (let i = 0; i < bins.length; i++) {
+        const b = bins[i];
+        if (b.percent > 0) {
+          const bh = (b.percent / maxPct) * ph * 0.42;
+          const bx = L + i * binW;
+          g.fillRect(bx, bottom - bh, Math.max(1, binW - 0.5), bh);
+        }
+      }
+    }
+  }
+
+  // Pinned reference curve
+  if (S && S.pinnedCurve && S.pinnedCurve.x) {
+    const pts = S.pinnedCurve.x;
+    const vRef = new Float32Array(pts.length);
+    toView(pts, vRef);
+    g.save();
+    g.setLineDash([4, 4]);
+    g.lineWidth = 1.6;
+    g.strokeStyle = col(C.pen, 0.85);
+    g.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const rx = X(i / (pts.length - 1) * maxX), ry = Y(vRef[i]);
+      i ? g.lineTo(rx, ry) : g.moveTo(rx, ry);
+    }
+    g.stroke();
+    g.restore();
+  }
+
   const path = arr => { g.beginPath(); for (let i = 0; i < N; i++) { const x = X(i / (N - 1) * maxX), y = Y(arr[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); } };
   path(vShown); g.lineTo(X(maxX), Y(base(maxX))); g.lineTo(X(0), Y(base(0))); g.closePath();
   g.fillStyle = hatch; g.fill();
@@ -904,6 +1093,23 @@ function step(now) {
   g.lineJoin = "round"; g.lineCap = "round";
   if (yA > 0.01) { g.globalAlpha = yA; g.lineWidth = 1.75; g.strokeStyle = col(C.ink); path(vShownY); g.stroke(); g.globalAlpha = 1; }
   g.lineWidth = 2.25; g.strokeStyle = col(C.pen); path(vShown); g.stroke();
+
+  // Interactive LUT points
+  if (S && S.profile && S.profile[axis] && S.profile[axis].mode === "lut" && S.profile[axis].lut) {
+    const pts = S.profile[axis].lut;
+    g.save();
+    for (let i = 0; i < pts.length; i++) {
+      const px = X(pts[i][0]), py = Y(view === "vel" ? pts[i][0] * pts[i][1] : pts[i][1]);
+      g.fillStyle = i === lutDragIdx ? col(C.pen) : col(C.ink);
+      g.strokeStyle = col(C.sheet);
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(px, py, i === lutDragIdx ? 6 : 4.5, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
+  }
   // write confirmation: the pen re-traces the curve left to right
   if (sweepT >= 0) {
     sweepT += dt;
@@ -964,6 +1170,94 @@ function step(now) {
 
   setText(sIn, speed.toFixed(1)); setText(sSens, sens.toFixed(2)); setText(sOut, (speed * sens).toFixed(1)); setText(sPk, peak.toFixed(1));
 }
+
+// ---------- LUT curve direct point manipulation ----------
+let lutDragIdx = -1;
+cv.addEventListener("pointerdown", e => {
+  if (!S || !S.profile || !S.profile[axis] || S.profile[axis].mode !== "lut" || !S.profile[axis].lut) return;
+  const pts = S.profile[axis].lut;
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const L = 62, R = 20, T = 32, B = 50, pw = W - L - R, ph = H - T - B;
+  const X = x => L + x / maxX * pw, Y = y => T + ph - y / yMax * ph;
+
+  for (let i = 0; i < pts.length; i++) {
+    const px = X(pts[i][0]), py = Y(view === "vel" ? pts[i][0] * pts[i][1] : pts[i][1]);
+    if (Math.hypot(mx - px, my - py) <= 12) {
+      lutDragIdx = i;
+      cv.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+  }
+});
+
+cv.addEventListener("pointermove", e => {
+  if (lutDragIdx < 0 || !S || !S.profile || !S.profile[axis] || !S.profile[axis].lut) return;
+  const pts = S.profile[axis].lut;
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const L = 62, R = 20, T = 32, B = 50, pw = W - L - R, ph = H - T - B;
+  let newSpd = clamp((mx - L) / pw * maxX, 0, maxX);
+  let newVal = clamp((T + ph - my) / ph * yMax, 0, yMax * 2);
+  if (view === "vel" && newSpd > 0.001) newVal = newVal / newSpd;
+
+  const prevSpd = lutDragIdx > 0 ? pts[lutDragIdx - 1][0] + 0.01 : 0;
+  const nextSpd = lutDragIdx < pts.length - 1 ? pts[lutDragIdx + 1][0] - 0.01 : maxX;
+  newSpd = clamp(newSpd, prevSpd, nextSpd);
+
+  pts[lutDragIdx][0] = Math.round(newSpd * 100) / 100;
+  pts[lutDragIdx][1] = Math.round(newVal * 1000) / 1000;
+
+  patchLocal(axis, { lut: pts });
+});
+
+const endLutDrag = e => {
+  if (lutDragIdx >= 0) {
+    lutDragIdx = -1;
+    try { cv.releasePointerCapture(e.pointerId); } catch {}
+    flushNow();
+  }
+};
+cv.addEventListener("pointerup", endLutDrag);
+cv.addEventListener("pointercancel", endLutDrag);
+
+cv.addEventListener("dblclick", e => {
+  if (!S || !S.profile || !S.profile[axis] || S.profile[axis].mode !== "lut" || !S.profile[axis].lut) return;
+  const pts = S.profile[axis].lut;
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const L = 62, R = 20, T = 32, B = 50, pw = W - L - R, ph = H - T - B;
+  const spd = Math.round(clamp((mx - L) / pw * maxX, 0, maxX) * 100) / 100;
+  let val = Math.round(clamp((T + ph - my) / ph * yMax, 0, yMax * 2) * 1000) / 1000;
+  if (view === "vel" && spd > 0.001) val = Math.round((val / spd) * 1000) / 1000;
+
+  pts.push([spd, val]);
+  pts.sort((a, b) => a[0] - b[0]);
+  patchLocal(axis, { lut: pts });
+  flushNow();
+});
+
+cv.addEventListener("contextmenu", e => {
+  if (!S || !S.profile || !S.profile[axis] || S.profile[axis].mode !== "lut" || !S.profile[axis].lut) return;
+  const pts = S.profile[axis].lut;
+  if (pts.length <= 2) return;
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const L = 62, R = 20, T = 32, B = 50, pw = W - L - R, ph = H - T - B;
+  const X = x => L + x / maxX * pw, Y = y => T + ph - y / yMax * ph;
+
+  for (let i = 0; i < pts.length; i++) {
+    const px = X(pts[i][0]), py = Y(view === "vel" ? pts[i][0] * pts[i][1] : pts[i][1]);
+    if (Math.hypot(mx - px, my - py) <= 12) {
+      e.preventDefault();
+      pts.splice(i, 1);
+      patchLocal(axis, { lut: pts });
+      flushNow();
+      return;
+    }
+  }
+});
 
 // ---------- start ----------
 setTheme(root.dataset.theme, false, false);

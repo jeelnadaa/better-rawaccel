@@ -17,9 +17,9 @@ Checks were made by driving the running app through its MCP server and reading w
 
 ## Design (approved prototype: `design/prototype.html`)
 - [x] Engineering-paper layout, title block, plot, readouts
-- [x] Five themes: Paper, Ledger, Blueprint, Graphite, Phosphor (Paper, Graphite and Blueprint seen in the app)
-- [x] Three typefaces: Satoshi, Cabinet Grotesk, Archivo; IBM Plex Mono for numbers (Satoshi and Archivo seen in the app)
-- [~] Callout tooltips and the "How to use" sheet — carried over from the prototype, not hovered in the real app
+- [x] Fourteen themes: 6 light (Paper, Ledger, Parchment, Millimeter, Technical, Chalk) and 8 dark (Blueprint, Graphite, Phosphor, Obsidian, Midnight, Radar, Cyberpunk, Solarized) with high-contrast elevated dropdowns
+- [x] Three typefaces: Satoshi, Cabinet Grotesk, Archivo; IBM Plex Mono for numbers
+- [x] Callout tooltips and the "How to use" sheet — with backdrop blur/scrim and elevated popover surface
 - [~] Curve morphing, write re-trace, reduced-motion support — only still captures were checked
 - [x] Live marker driven by real mouse input
 - [x] Parts the prototype did not have, in the same style: profiles, devices, driver & app sheet, output and advanced sections, table editor, notices
@@ -71,13 +71,15 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] First commit
 - [x] Pushed; releases v2.0.1 and v2.0.2 are public
 
-## Ideas, not started
+## Ideas and new additions
+- [x] Speed histogram under the curve: live hand-speed recording, distribution stats (median, p90, peak), canvas overlay with toggle, and MCP tools (`get_speed_histogram`, `reset_speed_histogram`)
+- [x] Draw the table curve by dragging points on the plot: interactive direct manipulation on the canvas for LUT mode (drag points, double-click to add, right-click to delete)
+- [x] Pin a reference curve, or overlay two profiles, to compare: dashed baseline curve on canvas, legend indicator, and MCP tools (`pin_reference_curve`, `clear_reference_curve`, `get_reference_curve`)
+- [x] cm/360 and sensitivity converter: interactive sheet in title block, live readout, multi-game yaw conversions (CS2/Source/Apex, Valorant, Overwatch 2, Fortnite, Rainbow Six Siege), and MCP tools (`calculate_cm360`, `convert_sensitivity`)
+- [x] Share a profile as a short code, and export the plot as an image: compact shareable `RA1:...` codes with UI buttons (`export_profile_code`, `import_profile_code`) and PNG export (`export_plot_image`)
+- [x] 14 light and dark themes: Paper, Ledger, Parchment, Millimeter, Technical, Chalk, Blueprint, Graphite, Phosphor, Obsidian, Midnight, Radar, Cyberpunk, Solarized
+- [x] High-contrast backdrop scrim and elevated styling for all dropdowns, modal sheets, and "How to use" notes
+- [x] Automated tests for the engine: `tests/BetterRawAccel.Tests` with 10 passing unit tests running in `dotnet test`
 - [ ] Per-game profiles: switch profile when a chosen game is in the foreground
 - [ ] Tray icon and global hotkeys for switching profiles
-- [ ] Speed histogram under the curve: where your hand actually spends its time
-- [ ] Draw the table curve by dragging points on the plot
-- [ ] Pin a reference curve, or overlay two profiles, to compare
-- [ ] cm/360 and sensitivity converter
-- [ ] Share a profile as a short code, and export the plot as an image
-- [ ] Automated tests for the engine, run in the workflow
 - [ ] ARM64 build, code-signed releases, winget package

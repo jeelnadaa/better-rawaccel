@@ -1,0 +1,26 @@
+# build output
+bin/
+obj/
+.vs/
+*.user
+.nuget/
+dist/
+
+# the upstream Raw Accel clone kept locally for reference (it is its own git repo)
+/rawaccel-src/
+
+# a local copy of the original Raw Accel release and its personal settings
+/rawaccel.exe
+/wrapper.dll
+/Newtonsoft.Json.dll
+/installer.exe
+/uninstaller.exe
+/writer.exe
+/driver/
+/themes/
+/settings.json
+/.config
+/error.log
+
+# tooling
+.claude/

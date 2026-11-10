@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en" data-theme="paper" data-font="satoshi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raw Accel — design prototype</title>
+<!--
+  Type: Satoshi + Cabinet Grotesk (Fontshare, ITF Free Font License), Archivo (SIL OFL 1.1),
+        IBM Plex Mono (SIL OFL 1.1) for all numbers.
+-->
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=cabinet-grotesk@400,500,700,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  // Restore theme/font before first paint so there is no flash.
+  try {
+    const t = localStorage.getItem("ra.theme"), f = localStorage.getItem("ra.font");
+    if (t) document.documentElement.dataset.theme = t;
+    if (f) document.documentElement.dataset.font = f;
+  } catch (e) {}
+</script>
+<style>
+  @property --p { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+  /* ---------- themes: each is a sheet, an ink and one pen ---------- */
+  :root, [data-theme="paper"] {
+    --desk: #D9D5C9; --sheet: #F2EFE7; --ink: #16150F; --ink2: #4B4940; --ink3: #6F6C61;
+    --pen: #B5311B; --pen-on-ink: #F2754E;
+    --grid: #16150F; --grid-a1: .065; --grid-a2: .16; --hatch-a: .30; color-scheme: light;
+  }
+  [data-theme="ledger"] {
+    --desk: #C7D1BC; --sheet: #EDF1E6; --ink: #0F1F15; --ink2: #3B4C40; --ink3: #586A5C;
+    --pen: #1F4FB0; --pen-on-ink: #9DB9FF;
+    --grid: #2E7D4C; --grid-a1: .16; --grid-a2: .38; --hatch-a: .26; color-scheme: light;
+  }
+  [data-theme="blueprint"] {
+    --desk: #0A2140; --sheet: #123769; --ink: #EEF3F9; --ink2: #C3D1E2; --ink3: #9AAEC7;
+    --pen: #F5C451; --pen-on-ink: #8A5A00;
+    --grid: #DDE7F3; --grid-a1: .09; --grid-a2: .21; --hatch-a: .32; color-scheme: dark;
+  }
+  [data-theme="graphite"] {
+    --desk: #0D0D0C; --sheet: #1C1C1A; --ink: #ECE8DE; --ink2: #B8B3A6; --ink3: #908C80;
+    --pen: #FF6B42; --pen-on-ink: #B5311B;
+    --grid: #ECE8DE; --grid-a1: .06; --grid-a2: .15; --hatch-a: .30; color-scheme: dark;
+  }
+  [data-theme="phosphor"] {
+    --desk: #070604; --sheet: #12100B; --ink: #F2B24C; --ink2: #CC9643; --ink3: #A67C3C;
+    --pen: #FFF0C8; --pen-on-ink: #5A3500;
+    --grid: #F2B24C; --grid-a1: .075; --grid-a2: .17; --hatch-a: .22; color-scheme: dark;
+  }
+
+  /* ---------- type: per-face tuning so labels and the wordmark stay deliberate ---------- */
+  [data-font="satoshi"] {
+    --ui: "Satoshi", "Archivo", Arial, sans-serif;
+    --mk-w: 900; --mk-s: 100%; --mk-tr: .05em; --mk-sz: 16.5px;
+    --lb-w: 700; --lb-s: 100%; --lb-tr: .13em; --lb-sz: 9px;
+    --cn: 100%; --nm-s: 100%; --nm-sz: 11px; --nm-w: 700; --bd-w: 700;
+  }
+  [data-font="cabinet"] {
+    --ui: "Cabinet Grotesk", "Archivo", Arial, sans-serif;
+    --mk-w: 800; --mk-s: 100%; --mk-tr: .02em; --mk-sz: 19px;
+    --lb-w: 700; --lb-s: 100%; --lb-tr: .11em; --lb-sz: 9.5px;
+    --cn: 100%; --nm-s: 100%; --nm-sz: 12px; --nm-w: 700; --bd-w: 700;
+  }
+  [data-font="archivo"] {
+    --ui: "Archivo", "Arial Narrow", Arial, sans-serif;
+    --mk-w: 800; --mk-s: 125%; --mk-tr: .01em; --mk-sz: 18px;
+    --lb-w: 650; --lb-s: 80%; --lb-tr: .12em; --lb-sz: 9.5px;
+    --cn: 88%; --nm-s: 76%; --nm-sz: 11.5px; --nm-w: 600; --bd-w: 600;
+  }
+
+  :root {
+    --rule:  color-mix(in srgb, var(--ink) 13%, transparent);
+    --rule2: color-mix(in srgb, var(--ink) 30%, transparent);
+    --on-ink-dim: color-mix(in srgb, var(--sheet) 55%, var(--ink));
+    --mono: "IBM Plex Mono", Consolas, monospace;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    --side: clamp(252px, 25vw, 328px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--desk); color: var(--ink); overflow: hidden; padding: 10px;
+    font: 400 13px/1.35 var(--ui); font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+  kbd { font: 500 10px/1 var(--mono); padding: 1px 3px; border: 1px solid var(--rule2); border-bottom-width: 2px; white-space: nowrap; }
+
+  /* brief colour cross-fade on theme switch */
+  .retheme *, .retheme *::before, .retheme *::after, .retheme body {
+    transition: background-color .35s var(--ease), color .35s var(--ease), border-color .35s var(--ease), stroke .35s var(--ease), fill .35s var(--ease) !important;
+  }
+
+  .app {
+    height: 100%; display: grid; grid-template-columns: var(--side) 1fr; grid-template-rows: auto 1fr;
+    background: var(--sheet); border: 1.5px solid var(--ink); min-height: 0;
+  }
+
+  /* ---------- title block ---------- */
+  header { grid-column: 1 / -1; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); border-bottom: 1.5px solid var(--ink); }
+  .mark { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 16px; border-right: 1.5px solid var(--ink); white-space: nowrap; min-width: 0; }
+  .mark b { font-weight: var(--mk-w); font-stretch: var(--mk-s); font-size: var(--mk-sz); letter-spacing: var(--mk-tr); line-height: 1; }
+  .help {
+    margin-left: auto; position: relative; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 0;
+    border: 1px solid var(--rule2); background: transparent; cursor: pointer; font: 500 10.5px var(--mono); color: var(--ink2);
+    transition: border-color .15s, color .15s, background-color .15s;
+  }
+  .help b { display: grid; place-items: center; width: 22px; height: 22px; border-right: 1px solid var(--rule2); font: 600 11px var(--mono); color: var(--ink); transition: border-color .15s; }
+  .help:hover, .help[aria-expanded="true"] { border-color: var(--ink); color: var(--ink); }
+  .help:hover b, .help[aria-expanded="true"] b { border-color: var(--ink); }
+  .help.new::after { content: ""; position: absolute; top: -4px; right: -4px; width: 7px; height: 7px; background: var(--pen); }
+  .tb { display: flex; min-width: 0; overflow: hidden; }
+  .tb .doc { flex: 1; display: flex; align-items: baseline; gap: 10px; padding: 0 16px; align-self: center; font-weight: var(--bd-w); font-stretch: var(--cn); font-size: 15px; white-space: nowrap; overflow: hidden; }
+  .tb .doc small { font: 400 10px var(--mono); color: var(--ink3); }
+  .cell { display: flex; flex-direction: column; justify-content: center; padding: 6px 14px; border-left: 1px solid var(--rule2); white-space: nowrap; }
+  .k { font-size: var(--lb-sz); font-weight: var(--lb-w); font-stretch: var(--lb-s); letter-spacing: var(--lb-tr); text-transform: uppercase; color: var(--ink3); line-height: 1.25; }
+  .cell .v { font: 500 12px/1.3 var(--mono); }
+  button.cell { background: transparent; border: 0; border-left: 1px solid var(--rule2); text-align: left; cursor: pointer; transition: background-color .15s; }
+  button.cell:hover, button.cell[aria-expanded="true"] { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  button.cell:focus-visible { outline-offset: -3px; }
+  button.cell .v { font: var(--bd-w) 12.5px/1.3 var(--ui); font-stretch: var(--cn); display: flex; align-items: center; gap: 6px; }
+  button.cell .v::after { content: ""; border: 3.5px solid transparent; border-top: 4.5px solid var(--ink2); border-bottom: 0; margin-top: 2px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border: 1px solid; flex: none; position: relative; overflow: hidden; }
+  .sw::after { content: ""; position: absolute; left: -2px; right: -2px; top: 50%; height: 2px; margin-top: -1px; background: var(--c); transform: rotate(-35deg); }
+  .led { display: inline-block; width: 7px; height: 7px; background: var(--ink); margin-right: 6px; vertical-align: 0; }
+  .led.tx { animation: tx .5s steps(1) 2; }
+  @keyframes tx { 0% { background: var(--pen); } 50% { background: var(--ink); } }
+
+  /* ---------- side panel ---------- */
+  aside { display: flex; flex-direction: column; border-right: 1.5px solid var(--ink); min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+  section { padding: 12px 16px 14px; border-bottom: 1px solid var(--rule2); }
+  .sh { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .sh i { font: 500 10px var(--mono); font-style: normal; color: var(--ink3); }
+  .sh h2 { font-size: calc(var(--lb-sz) + 1px); font-weight: var(--lb-w); font-stretch: var(--lb-s); letter-spacing: calc(var(--lb-tr) + .02em); text-transform: uppercase; }
+  .sh span { margin-left: auto; font: 400 10px var(--mono); color: var(--ink3); }
+
+  /* mode specimens: six small plots on one shared scale, so shapes compare directly */
+  .modes { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule2); border-left: 1px solid var(--rule2); }
+  .modes button {
+    position: relative; z-index: 1; display: flex; flex-direction: column; gap: 3px; text-align: left; min-width: 0;
+    padding: 6px 7px 5px; height: clamp(56px, 9.5vh, 84px); border: 0; border-right: 1px solid var(--rule2); border-bottom: 1px solid var(--rule2);
+    background: transparent; cursor: pointer; transition: color .22s var(--ease), background-color .15s;
+  }
+  .modes button:hover:not(.on) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .modes button:focus-visible { outline-offset: -3px; }
+  .modes .nm { display: flex; justify-content: space-between; gap: 4px; overflow: hidden; font-size: var(--nm-sz); font-weight: var(--nm-w); font-stretch: var(--nm-s); letter-spacing: .005em; white-space: nowrap; }
+  .modes .nm em { font: 400 9.5px var(--mono); font-style: normal; color: var(--ink3); transition: color .22s; }
+  .modes button.tight em { display: none; }
+  .modes svg { flex: 1; width: 100%; min-height: 0; overflow: visible; }
+  .modes svg .u { stroke: var(--rule2); stroke-dasharray: 2 2; transition: stroke .22s; }
+  .modes svg .c { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; transition: stroke .22s; }
+  .modes button.on { color: var(--sheet); }
+  .modes button.on em { color: var(--on-ink-dim); }
+  .modes button.on .u { stroke: var(--on-ink-dim); }
+  .modes button.on .c { stroke: var(--pen-on-ink); stroke-width: 1.8; }
+  .sel { position: absolute; z-index: 0; left: 0; top: 0; background: var(--ink); pointer-events: none;
+         transition: transform .34s var(--ease), width .34s var(--ease), height .34s var(--ease); }
+
+  /* parameters */
+  .prm { margin-bottom: 14px; animation: wipe .42s var(--ease) backwards; }
+  .prm:last-child { margin-bottom: 2px; }
+  @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  .prm-h { display: flex; align-items: baseline; gap: 6px; }
+  .prm-l { font-size: 13px; font-weight: var(--bd-w); font-stretch: var(--cn); cursor: ew-resize; user-select: none; text-transform: capitalize;
+           border-bottom: 1px dotted transparent; transition: border-color .15s; }
+  .prm-l:hover { border-bottom-color: var(--ink3); }
+  .prm-u { font: 400 10px var(--mono); color: var(--ink3); }
+  .prm-v {
+    margin-left: auto; width: 78px; padding: 1px 3px 2px; text-align: right; border: 0; border-radius: 0;
+    border-bottom: 1px solid var(--rule2); background: transparent; outline: none;
+    font: 500 16px/1.2 var(--mono); letter-spacing: -.01em; transition: box-shadow .15s, background-color .15s, color .15s;
+  }
+  .prm-v:hover { border-bottom-color: var(--ink); }
+  .prm-v:focus { box-shadow: inset 0 -2px 0 var(--pen); border-bottom-color: var(--pen); background: color-mix(in srgb, var(--pen) 8%, transparent); }
+  .prm-v.clamped { color: var(--pen); animation: nudge .3s var(--ease); }
+  @keyframes nudge { 30% { transform: translateX(-3px); } 60% { transform: translateX(2px); } }
+
+  .scale { position: relative; height: 22px; margin-top: 4px; cursor: pointer; touch-action: none; user-select: none; outline-offset: 3px;
+           transition: --p .26s var(--ease); }
+  .prm.drag .scale { transition: none; }
+  .scale svg { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 9px; }
+  .scale svg line { stroke: var(--ink3); vector-effect: non-scaling-stroke; shape-rendering: crispEdges; }
+  .scale svg line.M { stroke: var(--ink); }
+  .scale::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--ink); }
+  .scale .fill { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p) * 100%); background: var(--pen); z-index: 1; }
+  .scale .def { position: absolute; bottom: 11px; left: calc(var(--d) * 100%); width: 0; height: 0; transform: translateX(-3px);
+                border: 3px solid transparent; border-top: 4px solid var(--ink3); }
+  .scale .needle { position: absolute; top: 0; bottom: -3px; left: calc(var(--p) * 100%); width: 0; z-index: 2; }
+  .scale .needle::before { content: ""; position: absolute; top: 5px; bottom: 0; left: -1px; width: 2px; background: var(--pen); }
+  .scale .needle::after { content: ""; position: absolute; top: 0; left: -5px; border: 5px solid transparent; border-top: 6px solid var(--pen); border-bottom: 0; }
+  .scale:hover .needle::after, .scale:focus-visible .needle::after, .prm.drag .needle::after { border-top-color: var(--ink); }
+  .scale-l { display: flex; justify-content: space-between; margin-top: 3px; font: 400 9.5px var(--mono); color: var(--ink3); }
+
+  /* write */
+  .wr { margin-top: auto; border-top: 1.5px solid var(--ink); border-bottom: 0; padding-top: 14px; }
+  .write {
+    position: relative; overflow: hidden; width: 100%; height: 40px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px; border: 0; border-radius: 1px; background: var(--ink); color: var(--sheet); cursor: pointer;
+    font-weight: var(--bd-w); font-stretch: var(--cn); font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase;
+    transition: background-color .15s, transform .08s;
+  }
+  .write:hover { background: color-mix(in srgb, var(--ink) 84%, var(--sheet)); }
+  .write:active { transform: translateY(1px); }
+  .write kbd { border: 0; padding: 0; font: 400 10px var(--mono); letter-spacing: 0; text-transform: none; opacity: .6; }
+  .write .bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--pen-on-ink); transform: scaleX(0); transform-origin: left; }
+  .write.writing .bar { transform: scaleX(1); transition: transform .52s cubic-bezier(.45,0,.25,1); }
+  .write.done .bar { transform: scaleX(1); opacity: 0; transition: opacity .5s .35s; }
+  .st { display: flex; white-space: nowrap; overflow: hidden; align-items: center; gap: 7px; margin-top: 9px; min-height: 16px; font: 400 11px var(--mono); color: var(--ink2); }
+  .st::before { content: ""; width: 7px; height: 7px; flex: none; border: 1.5px solid var(--ink2); transition: background-color .2s, border-color .2s; }
+  .st.pend { color: var(--pen); }
+  .st.pend::before { background: var(--pen); border-color: var(--pen); }
+
+  /* ---------- plot ---------- */
+  main { display: grid; grid-template-rows: 1fr auto; min-width: 0; min-height: 0; }
+  .plot { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .anno { position: absolute; left: 62px; top: 9px; right: 210px; display: flex; align-items: baseline; gap: 10px; pointer-events: none; white-space: nowrap; overflow: hidden; }
+  .anno b { font-weight: var(--lb-w); font-stretch: var(--lb-s); font-size: calc(var(--lb-sz) + 1.5px); letter-spacing: .14em; text-transform: uppercase; }
+  .anno span { font: 400 11px var(--mono); color: var(--ink2); overflow: hidden; text-overflow: ellipsis; }
+  .anno.swap { animation: wipe .4s var(--ease); }
+  .legend { position: absolute; right: 20px; top: 6px; padding: 3px 0; display: flex; gap: 14px; font: 400 10.5px var(--mono); color: var(--ink2);
+            opacity: 0; visibility: hidden; transform: translateY(-3px);
+            transition: opacity .25s var(--ease), transform .25s var(--ease), visibility 0s .25s; }
+  .legend.on { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .legend i { display: inline-block; width: 18px; height: 0; vertical-align: 3px; margin-right: 6px; border-top: 2px solid var(--pen); }
+  .legend i.d { border-top: 1.5px dashed var(--ink2); }
+
+  .readouts { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1.5px solid var(--ink); }
+  .ro { padding: 7px 14px 8px; border-left: 1px solid var(--rule2); min-width: 0; }
+  .ro:first-child { border-left: 0; }
+  .ro:focus-visible { outline-offset: -3px; }
+  .ro .v { font: 500 clamp(19px, 2.2vw, 26px)/1.15 var(--mono); letter-spacing: -.02em; white-space: nowrap; }
+  .ro .v small { font: 400 10.5px var(--mono); color: var(--ink3); letter-spacing: 0; margin-left: 5px; }
+  .ro.s .v { color: var(--pen); }
+
+  /* ---------- callout tooltip: a drafting annotation with a leader line ---------- */
+  .tip { position: fixed; z-index: 50; left: 0; top: 0; max-width: 268px; padding: 7px 10px 8px; background: var(--sheet); color: var(--ink);
+         border: 1px solid var(--ink); pointer-events: none; opacity: 0; visibility: hidden;
+         transition: opacity .14s var(--ease), visibility 0s .14s; }
+  .tip.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+  .tip .k { display: flex; gap: 8px; margin-bottom: 3px; color: var(--ink); }
+  .tip .k i { font: 500 9.5px var(--mono); font-style: normal; color: var(--pen); letter-spacing: 0; }
+  .tip p { font-size: 12px; line-height: 1.45; color: var(--ink2); }
+  .tip kbd { color: var(--ink); }
+  .lead { position: fixed; z-index: 49; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .14s; }
+  .lead.on { opacity: 1; }
+  .lead::before { content: ""; position: absolute; width: 5px; height: 5px; background: var(--ink); }
+  .lead.h { height: 0; border-top: 1px solid var(--ink); }
+  .lead.h::before { top: -3px; }
+  .lead.h.a::before { left: -2px; } .lead.h.b::before { right: -2px; }
+  .lead.v { width: 0; border-left: 1px solid var(--ink); }
+  .lead.v::before { left: -3px; }
+  .lead.v.a::before { top: -2px; } .lead.v.b::before { bottom: -2px; }
+
+  /* ---------- popovers: theme / type menus and the notes sheet ---------- */
+  .pop { position: fixed; z-index: 40; background: var(--sheet); border: 1.5px solid var(--ink); display: none;
+         box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
+  .pop.on { display: block; animation: drop .18s var(--ease); }
+  @keyframes drop { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+  .menu { min-width: 188px; padding: 4px 0; }
+  .menu .k { padding: 4px 12px 5px; }
+  .menu button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 6px 12px; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 13px; }
+  .menu button:hover, .menu button:focus-visible { background: color-mix(in srgb, var(--ink) 7%, transparent); outline: none; }
+  .menu button .x { margin-left: auto; font: 400 10px var(--mono); color: var(--ink3); }
+  .menu button[aria-checked="true"]::before { content: ""; width: 4px; height: 4px; background: var(--pen); margin-left: -8px; margin-right: 0; }
+  .menu button[aria-checked="false"]::before { content: ""; width: 4px; margin-left: -8px; }
+  .menu .sw { width: 14px; height: 14px; }
+
+  .notes { width: min(600px, calc(100vw - 40px)); max-height: calc(100vh - 80px); overflow: auto; }
+  .notes header { display: flex; align-items: baseline; gap: 10px; padding: 9px 14px; border-bottom: 1.5px solid var(--ink); grid-template-columns: none; }
+  .notes header h3 { font-size: calc(var(--lb-sz) + 1.5px); font-weight: var(--lb-w); font-stretch: var(--lb-s); letter-spacing: .14em; text-transform: uppercase; }
+  .notes header span { font: 400 10px var(--mono); color: var(--ink3); }
+  .notes header button { margin-left: auto; border: 1px solid var(--rule2); background: transparent; padding: 2px 7px; font: 400 10px var(--mono); color: var(--ink2); cursor: pointer; }
+  .notes header button:hover { border-color: var(--ink); color: var(--ink); }
+  .notes ol { list-style: none; display: grid; grid-template-columns: 1fr 1fr; counter-reset: n; }
+  .notes li { counter-increment: n; display: grid; grid-template-columns: 22px 1fr; gap: 0 6px; padding: 9px 14px 10px 10px; border-bottom: 1px solid var(--rule); font-size: 12px; line-height: 1.45; color: var(--ink2); }
+  .notes li:nth-child(odd) { border-right: 1px solid var(--rule); }
+  .notes li::before { content: counter(n, decimal-leading-zero); grid-row: span 2; font: 500 10px/1.8 var(--mono); color: var(--pen); }
+  .notes li b { font-size: var(--lb-sz); font-weight: var(--lb-w); font-stretch: var(--lb-s); letter-spacing: var(--lb-tr); text-transform: uppercase; color: var(--ink); }
+  .notes kbd { color: var(--ink); }
+  @media (max-width: 640px) { .notes ol { grid-template-columns: 1fr; } .notes li:nth-child(odd) { border-right: 0; } }
+
+  @media (max-width: 1240px) { .tb .doc small { display: none; } }
+  @media (max-width: 900px) {
+    .tb .doc { display: none; } .tb .cell:first-of-type { border-left: 0; } .tb { justify-content: flex-end; }
+    .cell, button.cell { padding-left: 9px; padding-right: 9px; }
+    .help span { display: none; } .help { padding: 0; }
+    .help b { border-right: 0; }
+  }
+  @media (max-height: 680px) {
+    section { padding: 9px 14px 10px; }
+    .sh { margin-bottom: 7px; }
+    .modes button { height: 50px; }
+    .prm { margin-bottom: 8px; }
+    .scale { height: 19px; }
+    .wr { padding-top: 10px; }
+    .write { height: 36px; }
+    .st { margin-top: 6px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: 0s !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="mark"><b>RAW ACCEL</b>
+      <button class="help" id="helpBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="help"><b>?</b><span>How to use</span></button>
+    </div>
+    <div class="tb">
+      <div class="doc">Sensitivity curve <small>rev 1.7.1 preview</small></div>
+      <div class="cell"><span class="k">Profile</span><span class="v">default</span></div>
+      <div class="cell"><span class="k">Device</span><span class="v">1200 dpi · 1000 Hz</span></div>
+      <div class="cell" tabindex="0" data-tip="driver"><span class="k">Driver</span><span class="v"><span class="led" id="led"></span>connected</span></div>
+      <button class="cell" id="themeBtn" aria-haspopup="menu" aria-expanded="false" data-tip="theme"><span class="k">Sheet</span><span class="v" id="themeV"></span></button>
+      <button class="cell" id="fontBtn" aria-haspopup="menu" aria-expanded="false" data-tip="font"><span class="k">Type</span><span class="v" id="fontV"></span></button>
+    </div>
+  </header>
+
+  <aside>
+    <section>
+      <div class="sh"><i>01</i><h2>Mode</h2><span>keys 1–6</span></div>
+      <div class="modes" id="modes"><div class="sel" id="sel"></div></div>
+    </section>
+    <section>
+      <div class="sh"><i>02</i><h2>Parameters</h2><span>drag · type · ↑↓</span></div>
+      <div id="params"></div>
+    </section>
+    <section class="wr">
+      <button class="write" id="write" data-tip="write"><span id="wlabel">Write to driver</span><kbd>Ctrl ↵</kbd><span class="bar"></span></button>
+      <div class="st" id="st" tabindex="0" data-tip="status">Driver matches</div>
+    </section>
+  </aside>
+
+  <main>
+    <div class="plot" id="plot">
+      <canvas id="cv"></canvas>
+      <div class="anno" id="anno"><b></b><span></span></div>
+      <div class="legend" id="legend" tabindex="0" data-tip="legend"><span><i></i>editing</span><span><i class="d"></i>in driver</span></div>
+    </div>
+    <div class="readouts">
+      <div class="ro" tabindex="0" data-tip="in"><div class="k">Input · pointer</div><div class="v"><span id="sIn">0.0</span><small>c/ms</small></div></div>
+      <div class="ro s" tabindex="0" data-tip="sens"><div class="k">Sensitivity</div><div class="v"><span id="sSens">1.00</span><small>×</small></div></div>
+      <div class="ro" tabindex="0" data-tip="out"><div class="k">Output speed</div><div class="v"><span id="sOut">0.0</span><small>c/ms</small></div></div>
+      <div class="ro" tabindex="0" data-tip="peak"><div class="k">Peak · 3 s hold</div><div class="v"><span id="sPk">0.0</span><small>c/ms</small></div></div>
+    </div>
+  </main>
+</div>
+
+<div class="pop menu" id="menu" role="menu"></div>
+<div class="pop notes" id="notes" role="dialog" aria-label="How to use">
+  <header><h3>General notes</h3><span>hover or focus any control for its note</span><button id="notesClose">Esc · close</button></header>
+  <ol>
+    <li><b>Mode</b><span>Click a tile or press <kbd>1</kbd>–<kbd>6</kbd>. Tiles share one scale, so shapes compare directly.</span></li>
+    <li><b>Exact value</b><span>Type a number; <kbd>Enter</kbd> applies, <kbd>Esc</kbd> cancels. <kbd>↑</kbd><kbd>↓</kbd> step, <kbd>Shift</kbd> ×10, wheel while focused.</span></li>
+    <li><b>Ruler</b><span>Click to jump, drag to set. <kbd>Shift</kbd>-drag for 1/10 speed. Double-click resets to default <span aria-hidden="true">▾</span>.</span></li>
+    <li><b>Ruler, keyboard</b><span>Tab to it, then <kbd>←</kbd><kbd>→</kbd> step, <kbd>Shift</kbd> ×10, <kbd>Home</kbd>/<kbd>End</kbd> for the limits.</span></li>
+    <li><b>Scrub</b><span>Drag a parameter's name sideways to scrub its value without aiming at the ruler.</span></li>
+    <li><b>Live marker</b><span>Move the mouse: the ring and crosshair show your speed on the curve, with exact values on the axes.</span></li>
+    <li><b>Peak hold</b><span>The <span aria-hidden="true">▲</span> on the x axis and the last readout hold your fastest input for 3 s.</span></li>
+    <li><b>Dashed curve</b><span>What the driver has now. It appears while you have unwritten edits.</span></li>
+    <li><b>Write to driver</b><span>Button or <kbd>Ctrl</kbd>+<kbd>Enter</kbd> anywhere. The pen re-traces the curve when it lands.</span></li>
+    <li><b>Sheet &amp; type</b><span>Theme and typeface switchers in the title block; your choice is remembered. <kbd>?</kbd> opens these notes.</span></li>
+  </ol>
+</div>
+<div class="lead" id="lead"></div>
+<div class="tip" id="tip" role="tooltip"><div class="k"><i></i><span></span></div><p></p></div>
+
+<script>
+// Preview-only math: approximations of each mode so the motion can be judged.
+// The real app will get its curve points from wrapper.dll, same as the driver.
+const MAXX = 80, N = 240;
+const MODES = {
+  Linear:  { p: { accel: [0.03, 0, 0.1, 0.001], cap: [2.5, 1, 5, 0.05] },
+             f: (x, p) => Math.min(1 + p.accel * x, p.cap) },
+  Classic: { p: { accel: [0.03, 0, 0.1, 0.001], exponent: [2.4, 1.1, 4, 0.05], cap: [3.5, 1, 6, 0.05] },
+             f: (x, p) => Math.min(1 + Math.pow(p.accel * x, p.exponent - 1), p.cap) },
+  Natural: { p: { decay: [0.08, 0.005, 0.3, 0.005], limit: [2.2, 1, 5, 0.05], offset: [6, 0, 40, 0.5] },
+             f: (x, p) => { const t = Math.max(0, x - p.offset); return 1 + (p.limit - 1) * (1 - Math.exp(-p.decay * t)); } },
+  Power:   { p: { scale: [0.6, 0.1, 2, 0.01], exponent: [0.35, 0.05, 1, 0.01], cap: [3.5, 1, 6, 0.05] },
+             f: (x, p) => Math.min(Math.max(0.2, Math.pow(p.scale * x, p.exponent)), p.cap) },
+  Sync:    { p: { motivity: [2.2, 1.05, 4, 0.05], gamma: [1.2, 0.2, 4, 0.05], "sync speed": [18, 2, 60, 0.5] },
+             f: (x, p) => Math.exp(Math.log(p.motivity) * Math.tanh(p.gamma * Math.log(Math.max(x, 0.01) / p["sync speed"]))) },
+  Jump:    { p: { input: [25, 2, 70, 0.5], output: [2, 1, 5, 0.05], smooth: [0.5, 0.02, 1, 0.01] },
+             f: (x, p) => 1 + (p.output - 1) / (1 + Math.exp(-(x - p.input) / (p.smooth * 4))) },
+};
+// Presentation-only metadata.
+const LABEL = { Linear: "Linear", Classic: "Classic", Natural: "Natural", Power: "Power", Sync: "Synchronous", Jump: "Jump" };
+const SHORT = { Sync: "Sync." };
+const NOTE = {
+  Linear:  "sens = 1 + accel·v, held at cap",
+  Classic: "sens = 1 + (accel·v)^(exp−1), held at cap",
+  Natural: "rises past offset, eases toward limit",
+  Power:   "sens = (scale·v)^exp, held at cap",
+  Sync:    "log-symmetric about sync speed",
+  Jump:    "smoothed step to output at input speed",
+};
+const UNIT = { cap: "×", limit: "×", output: "×", motivity: "×", offset: "c/ms", input: "c/ms", "sync speed": "c/ms" };
+const THEMES = [
+  { id: "paper",     name: "Paper",     kind: "light" },
+  { id: "ledger",    name: "Ledger",    kind: "light" },
+  { id: "blueprint", name: "Blueprint", kind: "dark" },
+  { id: "graphite",  name: "Graphite",  kind: "dark" },
+  { id: "phosphor",  name: "Phosphor",  kind: "dark" },
+];
+const FONTS = [
+  { id: "satoshi", name: "Satoshi",         family: "Satoshi",         lic: "ITF FFL" },
+  { id: "cabinet", name: "Cabinet Grotesk", short: "Cabinet", family: "Cabinet Grotesk", lic: "ITF FFL" },
+  { id: "archivo", name: "Archivo",         family: "Archivo",         lic: "OFL" },
+];
+const TIPS = {
+  mode:   ["Mode", "Click a tile or press <kbd>1</kbd>–<kbd>6</kbd>. All six thumbnails share one scale, so shapes compare directly; the active one follows your parameters."],
+  label:  ["Scrub", "Drag the name left or right to scrub the value. Hold <kbd>Shift</kbd> for fine steps. Double-click resets to default."],
+  value:  ["Exact value", "Type a number; <kbd>Enter</kbd> applies, <kbd>Esc</kbd> cancels. <kbd>↑</kbd><kbd>↓</kbd> step, <kbd>Shift</kbd> ×10. Wheel steps while focused. Out-of-range input clamps to the ruler ends."],
+  ruler:  ["Ruler", "Click to jump, drag to set. <kbd>Shift</kbd>-drag moves at 1/10 speed. Double-click resets to the default ▾. Focused: <kbd>←</kbd><kbd>→</kbd> step, <kbd>Shift</kbd> ×10, <kbd>Home</kbd>/<kbd>End</kbd>."],
+  write:  ["Write to driver", "Sends this mode and its parameters to the kernel driver. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> works from anywhere. The pen re-traces the curve when the write lands."],
+  status: ["Driver state", "Whether the driver matches what you see. Unwritten changes are counted here in the accent colour."],
+  in:     ["Live marker", "Your current hand speed. The ring and crosshair on the plot show where it sits on the curve; the axis tags give exact values. In this preview, pointer speed stands in for raw mouse input."],
+  sens:   ["Sensitivity", "The multiplier the curve gives at the live input speed: the y value under the marker."],
+  out:    ["Output speed", "Input speed × sensitivity: what the cursor actually receives."],
+  peak:   ["Peak hold", "Fastest input in the last 3 seconds, also marked ▲ on the x axis. Flick, then check where the flick landed on the curve."],
+  legend: ["Driver curve", "Dashed: the curve the driver has now. Solid: your unwritten edits. The dashed line goes away once you write."],
+  theme:  ["Sheet", "Colour theme. Remembered on this machine."],
+  font:   ["Type", "Interface typeface. Numbers always stay in IBM Plex Mono."],
+  help:   ["How to use", "Every control and shortcut on one sheet. Shortcut <kbd>?</kbd>"],
+  driver: ["Driver", "Connection to the Raw Accel kernel driver. The square blinks when a write lands."],
+};
+const RM = matchMedia("(prefers-reduced-motion: reduce)");
+const root = document.documentElement;
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+let mode = "Natural";
+const vals = {};
+for (const m in MODES) { vals[m] = {}; for (const k in MODES[m].p) vals[m][k] = MODES[m].p[k][0]; }
+
+const target = new Float32Array(N), shown = new Float32Array(N).fill(1), vel = new Float32Array(N);
+const inDriver = new Float32Array(N);
+function curveInto(arr, m, p) { for (let i = 0; i < N; i++) arr[i] = MODES[m].f(i / (N - 1) * MAXX, p); }
+function recompute() { curveInto(target, mode, vals[mode]); }
+
+const $ = id => document.getElementById(id);
+const decimals = s => { let d = 0; while (d < 6 && Math.abs(Math.round(s * 10 ** d) - s * 10 ** d) > 1e-9) d++; return d; };
+
+// ---------- mode specimens ----------
+const modesEl = $("modes"), selEl = $("sel"), btns = {};
+const SPEC_Y = 4;
+function specPath(m) {
+  let d = "";
+  for (let i = 0; i <= 64; i++) {
+    const y = Math.max(0, Math.min(SPEC_Y, MODES[m].f(i / 64 * MAXX, vals[m])));
+    d += (i ? "L" : "M") + (i / 64 * 100).toFixed(2) + "," + (30 - y / SPEC_Y * 30).toFixed(2);
+  }
+  return d;
+}
+Object.keys(MODES).forEach((m, i) => {
+  const b = document.createElement("button");
+  b.dataset.m = m; b.dataset.tip = "mode"; b.setAttribute("aria-label", `${LABEL[m]} mode (key ${i + 1})`);
+  b.innerHTML = `<span class="nm"><span class="t">${LABEL[m]}</span><em>${i + 1}</em></span>
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><line class="u" x1="0" x2="100" y1="${30 - 30 / SPEC_Y}" y2="${30 - 30 / SPEC_Y}" vector-effect="non-scaling-stroke"/><path class="c" vector-effect="non-scaling-stroke"/></svg>`;
+  b.onclick = () => setMode(m);
+  modesEl.appendChild(b); btns[m] = b;
+  b.querySelector(".c").setAttribute("d", specPath(m));
+});
+function placeSel() {
+  const b = btns[mode];
+  selEl.style.transform = `translate(${b.offsetLeft}px, ${b.offsetTop}px)`;
+  selEl.style.width = b.offsetWidth + "px"; selEl.style.height = b.offsetHeight + "px";
+}
+// Fit tile names to whatever face is active: drop the key digit first, then abbreviate.
+function fitTiles() {
+  for (const m in btns) {
+    const b = btns[m], nm = b.querySelector(".nm"), t = b.querySelector(".t");
+    b.classList.remove("tight"); t.textContent = LABEL[m];
+    if (nm.scrollWidth > nm.clientWidth + 0.5) {
+      b.classList.add("tight");
+      if (nm.scrollWidth > nm.clientWidth + 0.5 && SHORT[m]) t.textContent = SHORT[m];
+    }
+  }
+}
+new ResizeObserver(() => { placeSel(); fitTiles(); }).observe(modesEl);
+
+// ---------- parameters ----------
+const paramsEl = $("params"), rows = {};
+const TICKS = (() => {
+  let s = "";
+  for (let i = 0; i <= 40; i++) {
+    const x = i * 2.5, maj = i % 10 === 0, mid = i % 5 === 0;
+    s += `<line ${maj ? 'class="M"' : ""} x1="${x}" x2="${x}" y1="${maj ? 0 : mid ? 3 : 6}" y2="10"/>`;
+  }
+  return `<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">${s}</svg>`;
+})();
+
+function buildParams() {
+  paramsEl.innerHTML = ""; for (const k in rows) delete rows[k];
+  let i = 0;
+  for (const k in MODES[mode].p) {
+    const [def, min, max, step] = MODES[mode].p[k], dec = decimals(step);
+    const row = document.createElement("div"); row.className = "prm";
+    row.style.animationDelay = (i++ * 55) + "ms";
+    row.style.setProperty("--d", (def - min) / (max - min));
+    row.innerHTML = `<div class="prm-h"><span class="prm-l" data-tip="label">${k}</span>${UNIT[k] ? `<span class="prm-u">${UNIT[k]}</span>` : ""}
+        <input class="prm-v" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" aria-label="${k}" data-tip="value"></div>
+      <div class="scale" tabindex="0" role="slider" aria-label="${k} ruler" aria-valuemin="${min}" aria-valuemax="${max}" data-tip="ruler">${TICKS}<div class="def"></div><div class="fill"></div><div class="needle"></div></div>
+      <div class="scale-l"><span>${min}</span><span>${max}</span></div>`;
+    const inp = row.querySelector("input"), sc = row.querySelector(".scale"), lab = row.querySelector(".prm-l");
+    const fmt = v => v.toFixed(dec);
+    rows[k] = { row, inp, sc, fmt, min, max };
+    sc.style.setProperty("--p", (vals[mode][k] - min) / (max - min));
+    sc.setAttribute("aria-valuenow", vals[mode][k]);
+    inp.value = fmt(vals[mode][k]);
+
+    // Relative drag: click jumps (on the scale), movement is incremental, Shift = 1/10 speed.
+    const drag = (el, absolute, pxRange) => {
+      let raw = 0, lastX = 0, active = false, moved = false;
+      el.addEventListener("pointerdown", e => {
+        if (e.button !== 0) return;
+        e.preventDefault(); el.setPointerCapture(e.pointerId); active = true; moved = false; lastX = e.clientX;
+        if (absolute) sc.focus({ preventScroll: true });
+        raw = vals[mode][k];
+        if (absolute && !e.shiftKey) { const r = sc.getBoundingClientRect(); raw = min + (max - min) * Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); setParam(k, raw); }
+      });
+      el.addEventListener("pointermove", e => {
+        if (!active) return;
+        const dx = e.clientX - lastX; lastX = e.clientX; if (!dx) return;
+        if (!moved) { moved = true; row.classList.add("drag"); }
+        const span = pxRange ? pxRange : sc.getBoundingClientRect().width;
+        raw = Math.min(max, Math.max(min, raw + dx / span * (max - min) * (e.shiftKey ? 0.1 : 1)));
+        setParam(k, raw);
+      });
+      const end = () => { active = false; row.classList.remove("drag"); };
+      el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+      el.addEventListener("dblclick", () => setParam(k, def));
+    };
+    drag(sc, true); drag(lab, false, 260);
+    sc.addEventListener("keydown", e => {
+      const mul = e.shiftKey ? 10 : 1, v = vals[mode][k];
+      const map = { ArrowRight: v + step * mul, ArrowUp: v + step * mul, ArrowLeft: v - step * mul, ArrowDown: v - step * mul, Home: min, End: max, PageUp: v + step * 10, PageDown: v - step * 10 };
+      if (e.key in map) { e.preventDefault(); setParam(k, map[e.key]); }
+    });
+
+    const commit = () => {
+      const v = parseFloat(inp.value.replace(",", "."));
+      if (!isFinite(v)) { inp.value = fmt(vals[mode][k]); return; }
+      if (v < min || v > max) { inp.classList.remove("clamped"); void inp.offsetWidth; inp.classList.add("clamped"); setTimeout(() => inp.classList.remove("clamped"), 900); }
+      setParam(k, v); inp.value = fmt(vals[mode][k]);
+    };
+    inp.addEventListener("focus", () => requestAnimationFrame(() => inp.select()));
+    inp.addEventListener("blur", commit);
+    inp.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.ctrlKey) { inp.blur(); }
+      else if (e.key === "Escape") { inp.value = fmt(vals[mode][k]); inp.blur(); }
+      else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const cur = parseFloat(inp.value.replace(",", ".")); const base = isFinite(cur) ? cur : vals[mode][k];
+        setParam(k, base + (e.key === "ArrowUp" ? 1 : -1) * step * (e.shiftKey ? 10 : 1));
+        inp.value = fmt(vals[mode][k]);
+      }
+    });
+    inp.addEventListener("wheel", e => {
+      if (document.activeElement !== inp) return;
+      e.preventDefault(); setParam(k, vals[mode][k] + (e.deltaY < 0 ? 1 : -1) * step * (e.shiftKey ? 10 : 1)); inp.value = fmt(vals[mode][k]);
+    }, { passive: false });
+    paramsEl.appendChild(row);
+  }
+}
+
+function setParam(k, v) {
+  const [, min, max, step] = MODES[mode].p[k], dec = decimals(step);
+  v = Math.min(max, Math.max(min, v));
+  v = +(Math.round((v - min) / step) * step + min).toFixed(dec);
+  v = Math.min(max, Math.max(min, v));
+  if (v === vals[mode][k]) return;
+  vals[mode][k] = v;
+  const r = rows[k];
+  r.sc.style.setProperty("--p", (v - min) / (max - min));
+  r.sc.setAttribute("aria-valuenow", v);
+  if (document.activeElement !== r.inp) r.inp.value = r.fmt(v);
+  recompute();
+  btns[mode].querySelector(".c").setAttribute("d", specPath(mode));
+  updateStatus();
+}
+
+const anno = $("anno");
+function setMode(m) {
+  if (m === mode && paramsEl.childElementCount) return;
+  mode = m;
+  for (const k in btns) { btns[k].classList.toggle("on", k === m); btns[k].setAttribute("aria-pressed", k === m); }
+  placeSel(); buildParams(); recompute();
+  anno.querySelector("b").textContent = LABEL[m]; anno.querySelector("span").textContent = NOTE[m];
+  anno.classList.remove("swap"); void anno.offsetWidth; anno.classList.add("swap");
+  updateStatus();
+}
+
+// ---------- driver state ----------
+let applied = null, writtenAt = null, writing = false, sweepT = -1;
+const st = $("st"), legend = $("legend"), writeBtn = $("write"), wlabel = $("wlabel"), led = $("led");
+function snapshot() { applied = { mode, v: { ...vals[mode] } }; curveInto(inDriver, applied.mode, applied.v); }
+function pendingCount() {
+  if (applied.mode !== mode) return -1;
+  let n = 0; for (const k in vals[mode]) if (vals[mode][k] !== applied.v[k]) n++;
+  return n;
+}
+let pending = 0;
+function updateStatus() {
+  if (!applied) return;
+  pending = pendingCount();
+  const t = writtenAt ? " · " +writtenAt.toLocaleTimeString([], { hour12: false }) : "";
+  st.classList.toggle("pend", pending !== 0);
+  st.textContent = pending === -1 ? `Driver still on ${LABEL[applied.mode]}`
+                 : pending > 0 ? `${pending} change${pending > 1 ? "s" : ""} not written`
+                 : "Driver matches" + t;
+  legend.classList.toggle("on", pending !== 0);
+}
+function write() {
+  if (writing) return;
+  if (document.activeElement && document.activeElement.classList.contains("prm-v")) document.activeElement.blur();
+  writing = true; wlabel.textContent = "Writing…";
+  writeBtn.classList.remove("done"); writeBtn.classList.add("writing");
+  setTimeout(() => {
+    snapshot(); writtenAt = new Date(); sweepT = RM.matches ? -1 : 0;
+    writeBtn.classList.remove("writing"); writeBtn.classList.add("done");
+    wlabel.textContent = "Written";
+    led.classList.remove("tx"); void led.offsetWidth; led.classList.add("tx");
+    updateStatus();
+    setTimeout(() => { writeBtn.classList.remove("done"); wlabel.textContent = "Write to driver"; writing = false; }, 1300);
+  }, RM.matches ? 0 : 540);
+}
+writeBtn.onclick = write;
+
+// ---------- callout tooltips ----------
+const tip = $("tip"), lead = $("lead"), PREF = { mode: "right", label: "right", value: "right", ruler: "right", write: "right", status: "right",
+  in: "top", sens: "top", out: "top", peak: "top", legend: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom" };
+const TIP_NO = Object.fromEntries(Object.keys(TIPS).map((k, i) => [k, String(i + 1).padStart(2, "0")]));
+let tipEl = null, tipTimer = 0, hideTimer = 0;
+function showTip(el) {
+  const key = el.dataset.tip, d = TIPS[key]; if (!d) return;
+  tipEl = el;
+  tip.querySelector(".k i").textContent = TIP_NO[key];
+  tip.querySelector(".k span").textContent = d[0];
+  tip.querySelector("p").innerHTML = d[1];
+  tip.classList.add("on");
+  const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, G = 16, M = 8, VW = innerWidth, VH = innerHeight;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const order = { right: ["right", "left", "bottom", "top"], top: ["top", "bottom", "right", "left"], bottom: ["bottom", "top", "right", "left"] }[PREF[key] || "bottom"];
+  const fits = {
+    right:  () => r.right + G + w <= VW - M,
+    left:   () => r.left - G - w >= M,
+    bottom: () => r.bottom + G + h <= VH - M,
+    top:    () => r.top - G - h >= M,
+  };
+  const side = order.find(s => fits[s]()) || order[0];
+  let x, y;
+  if (side === "right" || side === "left") {
+    x = side === "right" ? r.right + G : r.left - G - w;
+    y = clamp(r.top + r.height / 2 - 14, M, VH - h - M);
+  } else {
+    y = side === "bottom" ? r.bottom + G : r.top - G - h;
+    x = clamp(r.left + Math.min(r.width / 2, 40) - 20, M, VW - w - M);
+  }
+  x = clamp(x, M, VW - w - M); y = clamp(y, M, VH - h - M);
+  tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  // leader line from the control's edge to the callout box
+  lead.className = "lead on";
+  if (side === "right" || side === "left") {
+    const ly = clamp(r.top + r.height / 2, Math.max(r.top, y) + 4, Math.min(r.bottom, y + h) - 4);
+    const x0 = side === "right" ? r.right + 2 : x + w, x1 = side === "right" ? x : r.left - 2;
+    lead.classList.add("h", side === "right" ? "a" : "b");
+    Object.assign(lead.style, { transform: `translate(${Math.round(x0)}px, ${Math.round(ly)}px)`, width: Math.max(0, x1 - x0) + "px", height: "" });
+  } else {
+    const lx = clamp(r.left + Math.min(r.width / 2, 40), Math.max(r.left, x) + 4, Math.min(r.right, x + w) - 4);
+    const y0 = side === "bottom" ? r.bottom + 2 : y + h, y1 = side === "bottom" ? y : r.top - 2;
+    lead.classList.add("v", side === "bottom" ? "a" : "b");
+    Object.assign(lead.style, { transform: `translate(${Math.round(lx)}px, ${Math.round(y0)}px)`, height: Math.max(0, y1 - y0) + "px", width: "" });
+  }
+}
+function hideTip() { clearTimeout(tipTimer); tipEl = null; tip.classList.remove("on"); lead.classList.remove("on"); }
+const tipTarget = e => e.target.closest && e.target.closest("[data-tip]");
+document.addEventListener("pointerover", e => {
+  const el = tipTarget(e); if (!el || el === tipEl) return;
+  clearTimeout(tipTimer); clearTimeout(hideTimer);
+  if (document.querySelector(".pop.on")) return;
+  tipTimer = setTimeout(() => showTip(el), tipEl ? 60 : 450);
+});
+document.addEventListener("pointerout", e => {
+  const el = tipTarget(e); if (!el) return;
+  if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+  clearTimeout(tipTimer); hideTimer = setTimeout(() => { if (document.activeElement !== tipEl) hideTip(); }, 80);
+});
+document.addEventListener("focusin", e => {
+  const el = tipTarget(e);
+  if (el && el.matches(":focus-visible") && !document.querySelector(".pop.on")) { clearTimeout(tipTimer); showTip(el); } else if (!el) hideTip();
+});
+document.addEventListener("focusout", e => { if (tipTarget(e) === tipEl) hideTip(); });
+document.addEventListener("pointerdown", hideTip, true);
+addEventListener("resize", hideTip);
+
+// ---------- popovers (theme / type menus, notes) ----------
+const menuEl = $("menu"), notesEl = $("notes"), helpBtn = $("helpBtn"), themeBtn = $("themeBtn"), fontBtn = $("fontBtn");
+let popOwner = null;
+function placePop(pop, btn, alignRight) {
+  const r = btn.getBoundingClientRect(), w = pop.offsetWidth, M = 8;
+  const x = alignRight ? r.right - w : r.left;
+  pop.style.left = Math.round(Math.max(M, Math.min(innerWidth - w - M, x))) + "px";
+  pop.style.top = Math.round(r.bottom + 4) + "px";
+}
+function closePop(refocus) {
+  if (!popOwner) return;
+  menuEl.classList.remove("on"); notesEl.classList.remove("on");
+  popOwner.setAttribute("aria-expanded", "false");
+  if (refocus) popOwner.focus();
+  popOwner = null;
+}
+function openMenu(btn, title, items, current, pick) {
+  if (popOwner === btn) { closePop(); return; }
+  closePop(); hideTip();
+  menuEl.innerHTML = `<div class="k">${title}</div>` + items.map(it =>
+    `<button role="menuitemradio" aria-checked="${it.id === current}" data-id="${it.id}" style="${it.style || ""}">${it.html}</button>`).join("");
+  menuEl.classList.add("on"); popOwner = btn; btn.setAttribute("aria-expanded", "true");
+  placePop(menuEl, btn, true);
+  const list = [...menuEl.querySelectorAll("button")];
+  list.forEach(b => b.onclick = () => { pick(b.dataset.id); closePop(true); });
+  (list.find(b => b.getAttribute("aria-checked") === "true") || list[0]).focus();
+  menuEl.onkeydown = e => {
+    const i = list.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); list[(i + 1) % list.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+    else if (e.key === "Tab") closePop();
+  };
+}
+function toggleNotes() {
+  if (popOwner === helpBtn) { closePop(true); return; }
+  closePop(); hideTip();
+  notesEl.classList.add("on"); popOwner = helpBtn; helpBtn.setAttribute("aria-expanded", "true");
+  placePop(notesEl, helpBtn, false);
+  helpBtn.classList.remove("new"); store.set("ra.helpSeen", "1");
+  $("notesClose").focus({ preventScroll: true });
+}
+helpBtn.onclick = toggleNotes;
+$("notesClose").onclick = () => closePop(true);
+if (!store.get("ra.helpSeen")) helpBtn.classList.add("new");
+document.addEventListener("pointerdown", e => {
+  if (popOwner && !e.target.closest(".pop") && !popOwner.contains(e.target)) closePop();
+});
+addEventListener("resize", () => closePop());
+
+// ---------- themes & type ----------
+const cssVar = n => getComputedStyle(root).getPropertyValue(n).trim();
+const hex = s => { s = s.replace("#", ""); return [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16)); };
+function readTheme() {
+  return { ink: hex(cssVar("--ink")), ink2: hex(cssVar("--ink2")), ink3: hex(cssVar("--ink3")), pen: hex(cssVar("--pen")),
+           sheet: hex(cssVar("--sheet")), grid: hex(cssVar("--grid")),
+           a1: [+cssVar("--grid-a1")], a2: [+cssVar("--grid-a2")], ha: [+cssVar("--hatch-a")] };
+}
+const themeVars = id => {   // read a theme's colours without switching to it (for menu swatches)
+  const d = document.createElement("div"); d.dataset.theme = id; d.style.display = "none"; document.body.appendChild(d);
+  const cs = getComputedStyle(d), o = { sheet: cs.getPropertyValue("--sheet").trim(), ink: cs.getPropertyValue("--ink").trim(), pen: cs.getPropertyValue("--pen").trim() };
+  d.remove(); return o;
+};
+const swatch = id => { const v = themeVars(id); return `<span class="sw" style="background:${v.sheet};border-color:${v.ink};--c:${v.pen}"></span>`; };
+let C = null, Cfrom = null, Cto = null, themeT = 1, rethemeTimer = 0;
+function setTheme(id, animate) {
+  if (!THEMES.some(t => t.id === id)) id = "paper";
+  root.dataset.theme = id; store.set("ra.theme", id);
+  const to = readTheme();
+  if (animate && C && !RM.matches) {
+    Cfrom = JSON.parse(JSON.stringify(C)); Cto = to; themeT = 0;
+    root.classList.add("retheme"); clearTimeout(rethemeTimer); rethemeTimer = setTimeout(() => root.classList.remove("retheme"), 420);
+  } else { C = to; themeT = 1; }
+  const t = THEMES.find(t => t.id === id);
+  $("themeV").innerHTML = swatch(id) + t.name;
+}
+let UIF = "Satoshi, sans-serif";
+function setFont(id) {
+  if (!FONTS.some(f => f.id === id)) id = "satoshi";
+  root.dataset.font = id; store.set("ra.font", id);
+  UIF = cssVar("--ui");
+  { const f = FONTS.find(f => f.id === id); $("fontV").textContent = f.short || f.name; }
+  const after = () => { fitTiles(); placeSel(); };
+  after();
+  if (document.fonts) document.fonts.load(`700 12px "${FONTS.find(f => f.id === id).family}"`).then(after, after);
+}
+themeBtn.onclick = () => openMenu(themeBtn, "Sheet", THEMES.map(t => ({ id: t.id, html: `${swatch(t.id)}${t.name}<span class="x">${t.kind}</span>` })), root.dataset.theme, id => setTheme(id, true));
+fontBtn.onclick = () => openMenu(fontBtn, "Type", FONTS.map(f => ({ id: f.id, style: `font-family:'${f.family}', Arial, sans-serif`, html: `${f.name}<span class="x">${f.lic}</span>` })), root.dataset.font, setFont);
+
+addEventListener("keydown", e => {
+  if (e.key === "Escape") { if (popOwner) { closePop(true); return; } hideTip(); }
+  if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); write(); return; }
+  if (e.target.tagName === "INPUT" || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (popOwner && popOwner !== helpBtn) return;
+  if (e.key === "?") { e.preventDefault(); toggleNotes(); return; }
+  const i = "123456".indexOf(e.key);
+  if (i >= 0 && e.key.length === 1) setMode(Object.keys(MODES)[i]);
+});
+
+// ---------- live input (pointer speed stands in for raw input from the driver) ----------
+let speed = 0, speedT = 0, lastE = null, peak = 0, peakAt = 0;
+const trail = [];
+addEventListener("pointermove", e => {
+  if (lastE) { const dt = Math.max(1, e.timeStamp - lastE.t); speedT = Math.min(MAXX, Math.hypot(e.clientX - lastE.x, e.clientY - lastE.y) / dt * 14); }
+  lastE = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+});
+
+// ---------- plot ----------
+const MONO = "'IBM Plex Mono', Consolas, monospace";
+const col = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const cv = $("cv"), g = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1, hatch = null, hatchKey = "";
+function makeHatch(color) {
+  // Diagonal hatch for the region between curve and unity, at device resolution.
+  const s = Math.max(2, Math.round(7 * DPR)), c = document.createElement("canvas"); c.width = c.height = s;
+  const x = c.getContext("2d"); x.strokeStyle = color; x.lineWidth = Math.max(1, DPR * .9);
+  x.beginPath(); for (const o of [-s, 0, s]) { x.moveTo(o, s); x.lineTo(o + s, 0); } x.stroke();
+  hatch = g.createPattern(c, "repeat"); hatch.setTransform(new DOMMatrix().scale(1 / DPR)); hatchKey = color;
+}
+function fit() {
+  const r = cv.getBoundingClientRect(); DPR = devicePixelRatio || 1; W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  hatchKey = "";
+  if (C) step(performance.now());  // redraw now so a resize never shows a blank frame
+}
+new ResizeObserver(fit).observe(cv);
+matchMedia(`(resolution: ${devicePixelRatio}dppx)`).addEventListener?.("change", fit);
+
+const sample = (arr, x) => { const f = Math.min(N - 1.001, Math.max(0, x / MAXX * (N - 1))), i = f | 0; return arr[i] + (arr[i + 1] - arr[i]) * (f - i); };
+const crisp = v => Math.round(v) + .5;
+const sIn = $("sIn"), sSens = $("sSens"), sOut = $("sOut"), sPk = $("sPk");
+const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
+
+let yMax = 3, ghostA = 0, prev = performance.now();
+function tag(text, x, y, align) {
+  g.font = `500 10.5px ${MONO}`;
+  const w = Math.ceil(g.measureText(text).width) + 10, h = 17;
+  const rx = align === "c" ? x - w / 2 : x - w, ry = align === "c" ? y : y - h / 2;
+  g.fillStyle = col(C.ink); g.fillRect(Math.round(rx), Math.round(ry), w, h);
+  g.fillStyle = col(C.sheet); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(text, Math.round(rx) + 5, Math.round(ry) + h / 2 + .5);
+}
+
+function frame(now) { step(now); requestAnimationFrame(frame); }
+function step(now) {
+  const dt = Math.min(0.05, Math.max(0, (now - prev) / 1000)); prev = now;
+  const still = RM.matches;
+
+  // theme cross-fade on the canvas
+  if (themeT < 1) {
+    themeT = Math.min(1, themeT + dt / 0.35);
+    const e = 1 - Math.pow(1 - themeT, 3);
+    for (const k in Cto) C[k] = Cto[k].map((v, i) => Cfrom[k][i] + (v - Cfrom[k][i]) * e);
+  }
+
+  // Spring each point toward its target: this is what makes the curve morph and overshoot slightly.
+  let mx = 1.2;
+  for (let i = 0; i < N; i++) {
+    if (still) { shown[i] = target[i]; vel[i] = 0; }
+    else {
+      const delay = 1 + i / N * 0.6;
+      vel[i] += ((target[i] - shown[i]) * 170 / delay - vel[i] * 19) * dt;
+      shown[i] += vel[i] * dt;
+    }
+    if (target[i] > mx) mx = target[i];
+    if (pending && inDriver[i] > mx) mx = inDriver[i];
+  }
+  const yGoal = mx * 1.15;
+  yMax = still ? yGoal : yMax + (yGoal - yMax) * Math.min(1, dt * 5);
+  ghostA = still ? (pending ? 1 : 0) : ghostA + ((pending ? 1 : 0) - ghostA) * Math.min(1, dt * 8);
+  if (lastE && now - lastE.t > 60) speedT *= Math.pow(0.02, dt);
+  speed += (speedT - speed) * Math.min(1, dt * 14);
+  if (speed >= peak) { peak = speed; peakAt = now; } else if (now - peakAt > 3000) peak = Math.max(speed, peak * Math.pow(0.15, dt));
+
+  const L = 62, R = 20, T = 32, B = 50, pw = W - L - R, ph = H - T - B;
+  g.clearRect(0, 0, W, H);
+  if (pw < 60 || ph < 60) return;
+  const X = x => L + x / MAXX * pw, Y = y => T + ph - y / yMax * ph;
+  const bottom = T + ph;
+  const hk = col(C.pen, C.ha[0].toFixed(3));
+  if (hk !== hatchKey) makeHatch(hk);
+
+  // Grid: minor / major hierarchy, spacing adapts to plot size.
+  const xMinor = pw / 40 >= 7 ? 2 : 5;
+  const yMaj = [0.25, 0.5, 1, 2].find(s => ph / (yMax / s) >= 40) || 2;
+  const yMin = ph / (yMax / yMaj) / 5 >= 7 ? yMaj / 5 : yMaj / 2;
+  const isMaj = (v, s) => Math.abs(v / s - Math.round(v / s)) < 1e-6;
+  g.lineWidth = 1;
+  g.strokeStyle = col(C.grid, C.a1[0]); g.beginPath();
+  for (let x = xMinor; x < MAXX; x += xMinor) if (x % 10) { const p = crisp(X(x)); g.moveTo(p, T); g.lineTo(p, bottom); }
+  for (let k = 1; k * yMin <= yMax; k++) { const y = k * yMin; if (isMaj(y, yMaj)) continue; const p = crisp(Y(y)); g.moveTo(L, p); g.lineTo(L + pw, p); }
+  g.stroke();
+  g.strokeStyle = col(C.grid, C.a2[0]); g.beginPath();
+  for (let x = 10; x < MAXX; x += 10) { const p = crisp(X(x)); g.moveTo(p, T); g.lineTo(p, bottom); }
+  for (let k = 1; k * yMaj <= yMax; k++) { const p = crisp(Y(k * yMaj)); g.moveTo(L, p); g.lineTo(L + pw, p); }
+  g.stroke();
+  g.strokeStyle = col(C.ink, .3); g.strokeRect(crisp(L), crisp(T), Math.round(pw), Math.round(ph));
+
+  // Curve region (clipped to plot).
+  g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
+  const path = arr => { g.beginPath(); for (let i = 0; i < N; i++) { const x = X(i / (N - 1) * MAXX), y = Y(arr[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); } };
+  path(shown); g.lineTo(X(MAXX), Y(1)); g.lineTo(X(0), Y(1)); g.closePath();
+  g.fillStyle = hatch; g.fill();
+  // unity reference
+  g.setLineDash([4, 4]); g.strokeStyle = col(C.ink, .55); g.beginPath(); g.moveTo(L, crisp(Y(1))); g.lineTo(L + pw, crisp(Y(1))); g.stroke();
+  g.setLineDash([]);
+  // curve currently in the driver, when it differs
+  if (ghostA > 0.01) {
+    g.globalAlpha = ghostA; g.setLineDash([6, 4]); g.lineWidth = 1.5; g.strokeStyle = col(C.ink2); path(inDriver); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  }
+  g.lineJoin = "round"; g.lineCap = "round"; g.lineWidth = 2.25; g.strokeStyle = col(C.pen); path(shown); g.stroke();
+  // write confirmation: the pen re-traces the curve left to right
+  if (sweepT >= 0) {
+    sweepT += dt;
+    const prog = Math.min(1, sweepT / 0.55), a = sweepT < 0.55 ? 1 : Math.max(0, 1 - (sweepT - 0.55) / 0.45);
+    const ie = Math.max(1, Math.round(prog * (N - 1)));
+    g.globalAlpha = a; g.lineWidth = 3.5; g.strokeStyle = col(C.ink); g.beginPath();
+    for (let i = 0; i <= ie; i++) { const x = X(i / (N - 1) * MAXX), y = Y(shown[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+    if (prog < 1) { g.lineWidth = 1; g.strokeStyle = col(C.ink, .35); const sx = crisp(X(prog * MAXX)); g.beginPath(); g.moveTo(sx, T); g.lineTo(sx, bottom); g.stroke(); }
+    g.globalAlpha = 1;
+    if (a <= 0) sweepT = -1;
+  }
+  g.restore();
+
+  // Axes, ticks, labels.
+  g.lineWidth = 1; g.strokeStyle = col(C.ink); g.beginPath();
+  g.moveTo(crisp(L), T); g.lineTo(crisp(L), crisp(bottom)); g.lineTo(L + pw, crisp(bottom));
+  for (let x = 0; x <= MAXX + 1e-6; x += xMinor) { const p = crisp(X(x)); g.moveTo(p, crisp(bottom)); g.lineTo(p, bottom + (x % 10 ? 3 : 6)); }
+  for (let k = 0; k * yMin <= yMax; k++) { const y = k * yMin, p = crisp(Y(y)); g.moveTo(crisp(L), p); g.lineTo(L - (isMaj(y, yMaj) ? 6 : 3), p); }
+  g.stroke();
+  g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink2); g.textBaseline = "alphabetic";
+  g.textAlign = "center";
+  for (let x = 0; x <= MAXX; x += 10) g.fillText(String(x), X(x), bottom + 18);
+  g.textAlign = "right";
+  for (let k = 0; k * yMaj <= yMax; k++) { const y = k * yMaj; if (Y(y) < T + 4) break; g.fillText(y.toFixed(yMaj < 0.5 ? 2 : 1), L - 9, Y(y) + 3.5); }
+  // axis titles
+  g.font = `700 10px ${UIF}`; g.fillStyle = col(C.ink); g.letterSpacing = "1.4px";
+  g.textAlign = "right"; g.fillText("INPUT SPEED", L + pw - 64, bottom + 38);
+  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "left"; g.fillText("counts/ms", L + pw - 58, bottom + 38);
+  g.save(); g.translate(16, T); g.rotate(-Math.PI / 2);
+  g.font = `700 10px ${UIF}`; g.fillStyle = col(C.ink); g.letterSpacing = "1.4px"; g.textAlign = "right"; g.fillText("SENSITIVITY", -14, 0);
+  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "right"; g.fillText("×", 0, 0);
+  g.restore();
+
+  // Live marker: persistence trail, crosshair to both axes, axis readout tags.
+  const sens = sample(shown, speed);
+  if (speed > 0.05) trail.push([speed, sens, now]);
+  while (trail.length && now - trail[0][2] > 1200) trail.shift();
+  g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
+  for (const [sx, sy, t] of trail) { g.fillStyle = col(C.ink, (1 - (now - t) / 1200) * .45); g.fillRect(X(sx) - 1, Y(sy) - 1, 2, 2); }
+  const dx = X(speed), dy = Math.max(T, Math.min(bottom, Y(sens)));
+  g.strokeStyle = col(C.ink, .6); g.lineWidth = 1; g.setLineDash([2, 3]); g.beginPath();
+  g.moveTo(crisp(dx), dy); g.lineTo(crisp(dx), bottom); g.moveTo(dx, crisp(dy)); g.lineTo(L, crisp(dy)); g.stroke(); g.setLineDash([]);
+  g.restore();
+  if (peak > 0.5) {
+    const px = X(peak); g.fillStyle = col(C.pen); g.beginPath(); g.moveTo(px - 4, bottom); g.lineTo(px + 4, bottom); g.lineTo(px, bottom - 7); g.closePath(); g.fill();
+  }
+  g.lineWidth = 1.5; g.strokeStyle = col(C.ink); g.fillStyle = col(C.sheet);
+  g.beginPath(); g.arc(dx, dy, 5, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = col(C.pen); g.beginPath(); g.arc(dx, dy, 1.8, 0, Math.PI * 2); g.fill();
+  g.font = `500 10.5px ${MONO}`;
+  const xt = speed.toFixed(1), xw = g.measureText(xt).width + 10;
+  tag(xt, Math.max(L + xw / 2, Math.min(L + pw - xw / 2, dx)), bottom + 4, "c");
+  tag(sens.toFixed(2), L - 4, Math.max(T + 8, Math.min(bottom - 8, dy)), "r");
+
+  setText(sIn, speed.toFixed(1)); setText(sSens, sens.toFixed(2)); setText(sOut, (speed * sens).toFixed(1)); setText(sPk, peak.toFixed(1));
+}
+
+setTheme(root.dataset.theme, false);
+setFont(root.dataset.font);
+if (document.fonts) FONTS.forEach(f => document.fonts.load(`400 13px "${f.family}"`).catch(() => {}));  // so menu previews render in their own face
+setMode("Natural"); snapshot(); updateStatus();
+document.fonts && document.fonts.ready.then(() => { placeSel(); fitTiles(); });
+fit();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

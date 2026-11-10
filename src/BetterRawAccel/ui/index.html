@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-theme="paper" data-font="satoshi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Better Raw Accel</title>
+<!--
+  Type: Satoshi + Cabinet Grotesk (Fontshare, ITF Free Font License) and Archivo + IBM Plex Mono (SIL OFL 1.1).
+  The faces are loaded from their foundries' servers and cached by WebView2; they are not redistributed with the app.
+  Offline, the interface falls back to Arial and Consolas.
+-->
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=cabinet-grotesk@400,500,700,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  // Restore theme/font before first paint so there is no flash.
+  try {
+    const t = localStorage.getItem("ra.theme"), f = localStorage.getItem("ra.font");
+    if (t) document.documentElement.dataset.theme = t;
+    if (f) document.documentElement.dataset.font = f;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="extra.css">
+</head>
+<body>
+<div class="boot" id="boot">Starting…</div>
+<div class="app">
+  <header>
+    <div class="mark"><b>RAW ACCEL</b>
+      <button class="help" id="helpBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="help"><b>?</b><span>How to use</span></button>
+    </div>
+    <div class="tb">
+      <div class="doc">Sensitivity curve <small id="rev"></small></div>
+      <button class="cell" id="profBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="profile"><span class="k">Profile</span><span class="v" id="profV">default</span></button>
+      <button class="cell" id="devBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="device"><span class="k">Device</span><span class="v" id="devV"></span></button>
+      <button class="cell" id="sysBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="driver"><span class="k">Driver</span><span class="v"><span class="led" id="led"></span><span id="drvV">connected</span></span></button>
+      <button class="cell" id="themeBtn" aria-haspopup="menu" aria-expanded="false" data-tip="theme"><span class="k">Sheet</span><span class="v" id="themeV"></span></button>
+      <button class="cell" id="fontBtn" aria-haspopup="menu" aria-expanded="false" data-tip="font"><span class="k">Type</span><span class="v" id="fontV"></span></button>
+    </div>
+  </header>
+
+  <aside>
+    <div class="scroll" id="scroll">
+      <section>
+        <div class="sh"><i>01</i><h2>Mode</h2><span>keys 1–8</span></div>
+        <div class="modes" id="modes"><div class="sel" id="sel"></div></div>
+      </section>
+      <section>
+        <div class="sh"><i>02</i><h2>Parameters</h2><div class="seg" id="axisSeg" hidden data-tip="axis"><button data-a="x">X</button><button data-a="y">Y</button></div><span id="prmHint">drag · type · ↑↓</span></div>
+        <div id="params"></div>
+      </section>
+      <section>
+        <div class="sh"><i>03</i><h2>Output</h2><span>after the curve</span></div>
+        <div id="output"></div>
+      </section>
+      <section class="fold closed" id="advFold">
+        <div class="sh" id="advHead" tabindex="0" role="button" aria-expanded="false"><i>04</i><h2>Advanced</h2><span>axes · smoothing</span></div>
+        <div class="body" id="advanced"></div>
+      </section>
+    </div>
+    <section class="wr">
+      <button class="write" id="write" data-tip="write"><span id="wlabel">Write to driver</span><kbd>Ctrl ↵</kbd><span class="bar"></span></button>
+      <div class="st-row">
+        <div class="st" id="st" tabindex="0" data-tip="status">Driver matches</div>
+        <button class="ib" id="undoBtn" aria-label="Undo" data-tip="undo" disabled>↶</button>
+        <button class="ib" id="redoBtn" aria-label="Redo" data-tip="undo" disabled>↷</button>
+        <button class="ib" id="revertBtn" aria-label="Discard unwritten changes" data-tip="revert" disabled>×</button>
+      </div>
+    </section>
+  </aside>
+
+  <main>
+    <div class="plot" id="plot">
+      <canvas id="cv"></canvas>
+      <div class="anno" id="anno"><b></b><span></span></div>
+      <div class="legend" id="legend" tabindex="0" data-tip="legend">
+        <span data-l="edit"><i></i>editing</span><span data-l="y"><i class="y"></i>Y axis</span><span data-l="drv"><i class="d"></i>in driver</span>
+      </div>
+      <div class="notice" id="notice" role="status" aria-live="polite"></div>
+    </div>
+    <div class="readouts">
+      <div class="ro" tabindex="0" data-tip="in"><div class="k">Hand speed</div><div class="v"><span id="sIn">0.0</span><small>c/ms</small></div></div>
+      <div class="ro s" tabindex="0" data-tip="sens"><div class="k">Sensitivity</div><div class="v"><span id="sSens">1.00</span><small>×</small></div></div>
+      <div class="ro" tabindex="0" data-tip="out"><div class="k">Output speed</div><div class="v"><span id="sOut">0.0</span><small>c/ms</small></div></div>
+      <div class="ro" tabindex="0" data-tip="peak"><div class="k">Peak · 3 s hold</div><div class="v"><span id="sPk">0.0</span><small>c/ms</small></div></div>
+    </div>
+  </main>
+</div>
+
+<div class="pop menu" id="menu" role="menu"></div>
+<div class="pop sheet" id="sheet" role="dialog"></div>
+<div class="pop notes" id="notes" role="dialog" aria-label="How to use">
+  <header><h3>General notes</h3><span>hover or focus any control for its note</span><button id="notesClose">Esc · close</button></header>
+  <ol>
+    <li><b>Mode</b><span>Click a tile or press <kbd>1</kbd>–<kbd>8</kbd>. Tiles share one scale, so shapes compare directly. Each mode keeps its own values.</span></li>
+    <li><b>Exact value</b><span>Type a number; <kbd>Enter</kbd> applies, <kbd>Esc</kbd> cancels. <kbd>↑</kbd><kbd>↓</kbd> step, <kbd>Shift</kbd> ×10, wheel while focused. Typed values may go past the ruler.</span></li>
+    <li><b>Ruler</b><span>Click to jump, drag to set. <kbd>Shift</kbd>-drag for 1/10 speed. Double-click resets to default <span aria-hidden="true">▾</span>. Focused: <kbd>←</kbd><kbd>→</kbd>, <kbd>Home</kbd>/<kbd>End</kbd>.</span></li>
+    <li><b>Scrub</b><span>Drag a parameter's name sideways to scrub its value without aiming at the ruler.</span></li>
+    <li><b>Live marker</b><span>Move the mouse: the ring and crosshair show your hand speed on the curve, with exact values on the axes. <span aria-hidden="true">▲</span> holds your peak for 3 s.</span></li>
+    <li><b>Dashed curve</b><span>What the driver has now. It appears while you have unwritten edits; the status line counts them.</span></li>
+    <li><b>Write to driver</b><span>Button or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. The driver waits one second before using new settings; the pen re-traces the curve when it lands.</span></li>
+    <li><b>Undo</b><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>+<kbd>Y</kbd> step through edits. <b style="letter-spacing:0;text-transform:none">×</b> next to the status drops everything not yet written.</span></li>
+    <li><b>Profile &amp; device</b><span>Title block: keep several profiles, and give a mouse its own DPI, polling rate or profile.</span></li>
+    <li><b>Driver, sheet &amp; type</b><span>Driver opens start-up, MCP, update and import/export settings. Sheet and Type change the look. <kbd>?</kbd> opens these notes.</span></li>
+  </ol>
+</div>
+<div class="lead" id="lead"></div>
+<div class="tip" id="tip" role="tooltip"><div class="k"><i></i><span></span></div><p></p></div>
+
+<script src="app.js"></script>
+</body>
+</html>

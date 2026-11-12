@@ -58,10 +58,23 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] On start, a note says when the driver is not running your saved settings (after a Windows restart)
 - Checked on the real driver with the D: install's settings: use, close, reopen, hotkey, then the driver was confirmed identical to its state before the test
 
+## Audit 2026-11-12
+- [x] Overlay text overlapped at 150 % display scaling: it is now laid out in scaled units and sized to its content, uses installed fonts (Segoe UI, Cascadia Mono or Consolas) instead of a silently substituted one, and has square corners so light themes show no dark corners
+- [x] Overlay cm/360 used Raw Accel's multiplier as the in-game sensitivity ("8 cm"); it now uses the game and sensitivity saved in the cm/360 sheet, and shows "—" until one is set
+- [x] Overlay shows the profile in use, the mouse that runs it, and the mode as the app names it
+- [x] `calculate_cm360` and `convert_sensitivity` refused nothing: a negative DPI or an unknown game silently fell back to defaults; both are now rejected
+- [x] Settings and overlay arguments of the wrong type gave raw .NET errors; they now say what is expected
+- [x] `overlayPosition` accepted any text; `overlayHotkey` could be changed but nothing used it — both are now checked
+- [x] Hotkeys taken by another program failed silently; the Driver sheet now says which ones
+- [x] Deleting a profile above the one being edited switched the editor to the wrong profile
+- [x] A unit test removed the real "apply at sign-in" shortcut on the machine running it; it now leaves a real one alone
+- [x] The release workflow did not run the tests; it now does, and a failing test stops the release
+- The log rotation test only checks that writing works, not that rotation happens; `tests/ui_animation_and_controls_tests.js` re-implements the animation maths rather than testing `app.js`
+
 ## MCP (inside the running app, not headless)
 - [x] HTTP MCP server on 127.0.0.1 hosted by the GUI process; every change shows in the window
 - [x] Requests with a foreign `Origin` are refused (checked: 403); on/off switch and port in the Driver sheet
-- [x] 30 tools covering everything the UI can do, including `capture_window` and `show_panel`
+- [x] 45 tools covering everything the UI can do; all were called on the running app with good and bad input on 2026-11-12 (94 checks, 0 failures), and the driver and game-rule tools were run against the real driver
 - [x] Connection guide for Claude Code, Claude Desktop, Cursor, VS Code, Gemini CLI: `doc/MCP.md` (the Claude Desktop bridge and the non-Claude configs are documented but were not tried)
 - [x] Keeps the driver's 1-second write delay (a write takes about 2 s end to end)
 - [x] Turning the server off and changing its port from the sheet (verified: `McpServer` start/stop lifecycle and live dynamic port switching 47700 -> 47702 -> 47700)
@@ -90,6 +103,8 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] High-contrast backdrop scrim and elevated styling for all dropdowns, modal sheets, and "How to use" notes
 - [x] Automated tests for the engine: `tests/BetterRawAccel.Tests` with 10 passing unit tests running in `dotnet test`
 - [x] In-game HUD overlay & global hotkeys: transparent click-through HUD (`WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED`), Vanguard/anti-cheat compliant, showing active profile, mouse device, and cm/360. Global hotkeys: `Ctrl+Alt+O` to toggle, `Ctrl+Alt+P` to cycle profiles, and `Ctrl+Alt+1..5` for direct profile slots. MCP tools: `toggle_overlay`, `get_overlay_state`.
-- [ ] Per-game profiles: switch profile when a chosen game is in the foreground
-- [ ] Tray icon minimize and background daemon mode
-- [ ] ARM64 build, code-signed releases, winget package
+- [x] Per-game profiles: while a listed program runs, your mouse uses its profile; a fallback for when none runs; switches only when a game starts or stops, so a manual switch mid-game is kept (checked with a stand-in program on the real driver). Replaces `ValorantAccelWatcher.ps1`
+- [~] Keep running in the notification area when the window is closed, with a menu to switch profiles or quit — the option and tray icon were checked; closing the window into the tray was not clicked by hand
+- [ ] ARM64 build — needs an ARM64 `wrapper.dll`, which Raw Accel does not ship and which needs C++/CLI tools to build
+- [ ] Code-signed releases — needs a code-signing certificate
+- [ ] winget package — a public submission to Microsoft's winget repository, to be made by the owner

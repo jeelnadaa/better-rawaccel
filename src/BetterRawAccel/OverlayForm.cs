@@ -40,7 +40,9 @@ namespace BetterRawAccel
         public string DeviceName { get; private set; } = "All Mice";
         public string ModeName { get; private set; } = "Natural";
         public string SensValue { get; private set; } = "1.00×";
-        public string Cm360Value { get; private set; } = "~52 cm";
+        public string Cm360Value { get; private set; } = "—";
+        /// <summary>Game the cm/360 cell is for, or empty when no game sensitivity has been set.</summary>
+        public string GameLabel { get; private set; } = "";
         public string PositionMode { get; private set; } = "top-right";
         public int CustomX { get; private set; } = -1;
         public int CustomY { get; private set; } = -1;
@@ -65,7 +67,6 @@ namespace BetterRawAccel
             TopMost = true;
             StartPosition = FormStartPosition.Manual;
             Size = new Size(440, 108);
-            BackColor = Color.FromArgb(20, 20, 20);
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
             UpdateStyles();
@@ -81,7 +82,7 @@ namespace BetterRawAccel
             fadeTimer.Interval = 25;
             fadeTimer.Tick += OnFadeTick;
 
-            Reposition(PositionMode, CustomX, CustomY);
+            Relayout();
         }
 
         protected override CreateParams CreateParams
@@ -106,6 +107,7 @@ namespace BetterRawAccel
             ActiveThemeName = themeName.ToLowerInvariant();
             if (!Themes.TryGetValue(ActiveThemeName, out currentTheme))
                 currentTheme = Themes["paper"];
+            BackColor = currentTheme.Sheet;
 
             Invalidate();
             Update();
@@ -132,7 +134,7 @@ namespace BetterRawAccel
 
             if (movable && !Visible) SetVisibility(true);
 
-            Invalidate();
+            Relayout();
             Update();
             MovableStateChanged?.Invoke(movable);
         }
@@ -175,15 +177,16 @@ namespace BetterRawAccel
             Location = new Point(x, y);
         }
 
-        public void UpdateInfo(string profile, string device, string mode, string sens, string cm360)
+        public void UpdateInfo(string profile, string device, string mode, string sens, string cm360, string gameLabel = null)
         {
+            GameLabel = gameLabel ?? "";
             ProfileName = string.IsNullOrWhiteSpace(profile) ? "default" : profile;
             DeviceName = string.IsNullOrWhiteSpace(device) ? "All Mice" : device;
             ModeName = string.IsNullOrWhiteSpace(mode) ? "Linear" : mode;
             SensValue = sens ?? "1.00×";
-            Cm360Value = cm360 ?? "~52 cm";
+            Cm360Value = string.IsNullOrWhiteSpace(cm360) ? "—" : cm360;
 
-            Invalidate();
+            Relayout();
             Update();
 
             if (AutoFade && IsActive && !IsMovable)
@@ -305,188 +308,211 @@ namespace BetterRawAccel
             }
         }
 
+        // ------------------------------------------------------------ layout and drawing
+        //
+        // Everything is laid out in 96-dpi units and multiplied by the display scale, and every cell is as wide as
+        // its text (capped, with an ellipsis), so nothing can run into anything else at any scaling or text length.
+
+        static readonly string UiFamily = PickFamily("Segoe UI Variable Text", "Segoe UI", "Arial");
+        static readonly string MonoFamily = PickFamily("Cascadia Mono", "Consolas", "Courier New");
+
+        static string PickFamily(params string[] names)
+        {
+            try
+            {
+                using (var fc = new InstalledFontCollection())
+                {
+                    var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var f in fc.Families) have.Add(f.Name);
+                    foreach (var n in names) if (have.Contains(n)) return n;
+                }
+            }
+            catch { }
+            return FontFamily.GenericSansSerif.Name;
+        }
+
+        /// <summary>Text in the title block's four cells: label above, value below.</summary>
+        string[] CellLabels => new[] { "PROFILE", string.IsNullOrEmpty(GameLabel) ? "CM/360" : GameLabel.ToUpperInvariant() + " CM/360", "CURVE", "DEVICE" };
+        string[] CellValues => new[] { ProfileName, Cm360Value, ModeName + " · " + SensValue, DeviceName };
+        static readonly bool[] CellMono = { false, true, false, false };
+
+        string FooterText => IsMovable
+            ? "Drag to place · right-click or Ctrl+Alt+M to lock"
+            : "Ctrl+Alt+O hide · Ctrl+Alt+P next profile · Ctrl+Alt+M move";
+
+        float scale = 1f;
+
+        void Relayout()
+        {
+            try
+            {
+                using (var g = CreateGraphics())
+                {
+                    scale = g.DpiX / 96f;
+                    var size = LayoutContent(g, false);
+                    if (Size != size) Size = size;
+                }
+                Reposition(PositionMode, CustomX, CustomY);
+                Invalidate();
+            }
+            catch (Exception e)
+            {
+                Log.Error("overlay layout", e);
+            }
+        }
+
+        protected override void OnDpiChanged(DpiChangedEventArgs e)
+        {
+            base.OnDpiChanged(e);
+            Relayout();
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+            LayoutContent(g, true);
+        }
 
-            var theme = currentTheme ?? Themes["paper"];
-            var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+        int Px(float v) => (int)Math.Round(v * scale);
 
-            // 1. Engineering Drafting Sheet Background
-            int bgAlpha = theme.IsDark ? 245 : 248;
-            using (var path = RoundedRect(bounds, 6))
+        /// <summary>Draws the overlay as it would appear, whether or not it is on screen.</summary>
+        public string RenderPngBase64()
+        {
+            Relayout();
+            using (var bmp = new Bitmap(Width, Height))
             {
-                using (var brush = new SolidBrush(Color.FromArgb(bgAlpha, theme.Sheet)))
+                using (var g = Graphics.FromImage(bmp))
                 {
-                    g.FillPath(brush, path);
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    LayoutContent(g, true);
                 }
-
-                // Outer border: crisp high-contrast technical border, dashed highlight when movable
-                Color borderColor = IsMovable ? theme.Pen : theme.Border;
-                float borderWidth = IsMovable ? 2.0f : 1.25f;
-
-                using (var pen = new Pen(borderColor, borderWidth))
+                using (var ms = new System.IO.MemoryStream())
                 {
-                    if (IsMovable) pen.DashStyle = DashStyle.Dash;
-                    g.DrawPath(pen, path);
-                }
-            }
-
-            // Typography setup
-            using (var fontBrand = CreateFont(10.5f, FontStyle.Bold))
-            using (var fontTitle = CreateFont(11f, FontStyle.Bold))
-            using (var fontLabel = CreateFont(7.5f, FontStyle.Bold))
-            using (var fontSub = CreateFont(9f, FontStyle.Regular))
-            using (var fontFoot = CreateFont(7.2f, FontStyle.Regular))
-            using (var fontFootBold = CreateFont(7.5f, FontStyle.Bold))
-            using (var inkBrush = new SolidBrush(theme.Ink))
-            using (var ink2Brush = new SolidBrush(theme.Ink2))
-            using (var ink3Brush = new SolidBrush(theme.Ink3))
-            using (var penBrush = new SolidBrush(theme.Pen))
-            using (var rulePen = new Pen(theme.Rule, 1f))
-            {
-                // 2. Header Row: Official Option 4 Brand Logo (accel.) & Status
-                // Vector curve icon
-                using (var curvePen = new Pen(theme.Ink, 2.2f))
-                {
-                    curvePen.StartCap = LineCap.Round;
-                    curvePen.EndCap = LineCap.Round;
-                    using (var curvePath = new GraphicsPath())
-                    {
-                        curvePath.AddLine(14, 18, 20, 18);
-                        curvePath.AddBezier(20, 18, 24, 18, 26, 13, 29, 8);
-                        g.DrawPath(curvePen, curvePath);
-                    }
-                }
-                g.FillEllipse(inkBrush, 28f, 6.5f, 3.2f, 3.2f);
-                g.FillEllipse(penBrush, 32.5f, 6.5f, 2.4f, 2.4f);
-
-                // Wordmark: accel.
-                g.DrawString("accel", fontBrand, inkBrush, 38, 5);
-                var wordSize = g.MeasureString("accel", fontBrand);
-                g.DrawString(".", fontBrand, penBrush, 38 + wordSize.Width - 5, 5);
-
-                // LED Status Pulse
-                float ledX = 38 + wordSize.Width + 8;
-                g.FillEllipse(penBrush, ledX, 11, 5, 5);
-
-                // Mode / Status Badge
-                if (IsMovable)
-                {
-                    string movLabel = "MOVABLE HUD";
-                    var movSize = g.MeasureString(movLabel, fontLabel);
-                    var movBadgeRect = new Rectangle((int)ledX + 12, 7, (int)movSize.Width + 10, 16);
-                    using (var badgeBrush = new SolidBrush(Color.FromArgb(theme.IsDark ? 70 : 40, theme.Pen)))
-                    using (var badgePath = RoundedRect(movBadgeRect, 3))
-                    {
-                        g.FillPath(badgeBrush, badgePath);
-                    }
-                    g.DrawString(movLabel, fontLabel, penBrush, ledX + 17, 8);
-
-                    // Technical Lock Button (top right, no emoji)
-                    lockBtnRect = new Rectangle(Width - 76, 5, 62, 20);
-                    using (var lockPath = RoundedRect(lockBtnRect, 3))
-                    using (var lockBg = new SolidBrush(theme.Pen))
-                    using (var lockPen = new Pen(theme.Border, 1f))
-                    {
-                        g.FillPath(lockBg, lockPath);
-                        g.DrawPath(lockPen, lockPath);
-                    }
-                    using (var lockTextBrush = new SolidBrush(theme.IsDark ? Color.Black : Color.White))
-                    {
-                        var btnSize = g.MeasureString("LOCK", fontFootBold);
-                        float bx = lockBtnRect.X + (lockBtnRect.Width - btnSize.Width) / 2f;
-                        float by = lockBtnRect.Y + (lockBtnRect.Height - btnSize.Height) / 2f;
-                        g.DrawString("LOCK", fontFootBold, lockTextBrush, bx, by);
-                    }
-                }
-                else
-                {
-                    lockBtnRect = Rectangle.Empty;
-                    g.DrawString("ACTIVE · KERNEL HUD", fontLabel, ink3Brush, ledX + 12, 9);
-                }
-
-                // 3. Hairline divider under Header
-                g.DrawLine(rulePen, 10, 28, Width - 10, 28);
-
-                // 4. Precision Title Block Cells (Key-Value Grid)
-                // Cell 1: PROFILE
-                int col1X = 14;
-                g.DrawString("PROFILE", fontLabel, ink2Brush, col1X, 32);
-                g.DrawString(Truncate(ProfileName, 14), fontTitle, inkBrush, col1X, 45);
-
-                // Divider 1
-                g.DrawLine(rulePen, 136, 30, 136, 74);
-
-                // Cell 2: VALORANT CM/360
-                int col2X = 144;
-                g.DrawString("VALORANT", fontLabel, ink2Brush, col2X, 32);
-                g.DrawString(Cm360Value, fontTitle, penBrush, col2X, 45);
-
-                // Divider 2
-                g.DrawLine(rulePen, 246, 30, 246, 74);
-
-                // Cell 3: MODE & SENSITIVITY
-                int col3X = 254;
-                g.DrawString("MODE · MULT", fontLabel, ink2Brush, col3X, 32);
-                string modeSens = ModeName + " · " + SensValue;
-                g.DrawString(Truncate(modeSens, 14), fontSub, inkBrush, col3X, 46);
-
-                // Divider 3
-                g.DrawLine(rulePen, 344, 30, 344, 74);
-
-                // Cell 4: DEVICE
-                int col4X = 352;
-                g.DrawString("DEVICE", fontLabel, ink2Brush, col4X, 32);
-                g.DrawString(Truncate(DeviceName, 12), fontSub, ink2Brush, col4X, 46);
-
-                // 5. Hairline divider above Footer
-                g.DrawLine(rulePen, 10, 75, Width - 10, 75);
-
-                // 6. Footer Annotation / Hotkeys
-                if (IsMovable)
-                {
-                    string hint = "Drag anywhere to position · Click [LOCK] or press Ctrl+Alt+M to lock";
-                    g.DrawString(hint, fontFootBold, penBrush, 14, 83);
-                }
-                else
-                {
-                    string driverTag = "accel. driver: connected";
-                    g.DrawString(driverTag, fontFoot, ink3Brush, 14, 84);
-
-                    string hotkeys = "Ctrl+Alt+O Toggle · Ctrl+Alt+P Switch · Ctrl+Alt+M Move";
-                    var hkSize = g.MeasureString(hotkeys, fontFoot);
-                    g.DrawString(hotkeys, fontFoot, ink3Brush, Width - hkSize.Width - 14, 84);
+                    bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    return Convert.ToBase64String(ms.ToArray());
                 }
             }
         }
 
-        static Font CreateFont(float size, FontStyle style)
+        /// <summary>Measures (draw = false) or draws (draw = true) the overlay. Returns the size it needs.</summary>
+        Size LayoutContent(Graphics g, bool draw)
         {
-            try { return new Font("Satoshi", size, style); }
-            catch { }
-            try { return new Font("Segoe UI", size, style); }
-            catch { return new Font(FontFamily.GenericSansSerif, size, style); }
-        }
+            var t = currentTheme ?? Themes["paper"];
+            const TextFormatFlags One = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix;
+            const TextFormatFlags Ell = One | TextFormatFlags.EndEllipsis;
 
-        static GraphicsPath RoundedRect(Rectangle bounds, int radius)
-        {
-            var path = new GraphicsPath();
-            int diameter = radius * 2;
-            var arc = new Rectangle(bounds.Location, new Size(diameter, diameter));
+            using (var fBrand = new Font(UiFamily, 15f * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var fTag = new Font(UiFamily, 9.5f * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var fLabel = new Font(UiFamily, 9.5f * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var fValue = new Font(UiFamily, 14f * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var fMono = new Font(MonoFamily, 14f * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var fFoot = new Font(UiFamily, 10f * scale, FontStyle.Regular, GraphicsUnit.Pixel))
+            {
+                Size M(string s, Font f) => TextRenderer.MeasureText(g, s, f, new Size(int.MaxValue, int.MaxValue), One);
 
-            path.AddArc(arc, 180, 90);
-            arc.X = bounds.Right - diameter;
-            path.AddArc(arc, 270, 90);
-            arc.Y = bounds.Bottom - diameter;
-            path.AddArc(arc, 0, 90);
-            arc.X = bounds.Left;
-            path.AddArc(arc, 90, 90);
-            path.CloseFigure();
-            return path;
+                int pad = Px(12), gap = Px(14), maxCell = Px(170), minCell = Px(56);
+
+                // Header: curve mark, wordmark, state tag, and a LOCK button while movable.
+                int markW = Px(20);
+                var brand = M("accel", fBrand);
+                var dot = M(".", fBrand);
+                string tag = IsMovable ? "MOVABLE" : "LIVE HUD";
+                var tagSz = M(tag, fTag);
+                var lockSz = M("LOCK", fTag);
+                int lockW = IsMovable ? lockSz.Width + Px(18) : 0;
+                int headerH = Math.Max(brand.Height, Px(22));
+                int headerW = markW + Px(6) + brand.Width + dot.Width + Px(12) + tagSz.Width + (IsMovable ? Px(16) + lockW : 0);
+
+                // Cells.
+                var labels = CellLabels;
+                var values = CellValues;
+                var widths = new int[4];
+                int labelH = M("Ag", fLabel).Height, valueH = Math.Max(M("Ag", fValue).Height, M("Ag", fMono).Height);
+                for (int i = 0; i < 4; i++)
+                {
+                    int w = Math.Max(M(labels[i], fLabel).Width, M(values[i] ?? "", CellMono[i] ? fMono : fValue).Width);
+                    widths[i] = Math.Max(minCell, Math.Min(maxCell, w));
+                }
+                int cellsW = 0;
+                for (int i = 0; i < 4; i++) cellsW += widths[i];
+                cellsW += gap * 6;   // a gap on each side of the three dividers
+
+                var foot = M(FooterText, fFoot);
+
+                int innerW = Math.Max(cellsW, Math.Max(headerW, foot.Width));
+                int W = innerW + pad * 2;
+                int yRule1 = pad + headerH + Px(7);
+                int yLabel = yRule1 + Px(8);
+                int yValue = yLabel + labelH + Px(3);
+                int yRule2 = yValue + valueH + Px(8);
+                int yFoot = yRule2 + Px(6);
+                int H = yFoot + foot.Height + Px(9);
+
+                if (!draw) return new Size(W, H);
+
+                // Sheet and frame. Square corners: this is a drawing title block, and rounded corners would leave
+                // the window's own colour showing at the corners on light themes.
+                using (var sheet = new SolidBrush(t.Sheet)) g.FillRectangle(sheet, 0, 0, W, H);
+                using (var frame = new Pen(IsMovable ? t.Pen : t.Border, Math.Max(1f, (IsMovable ? 2f : 1.5f) * scale)))
+                {
+                    if (IsMovable) frame.DashStyle = DashStyle.Dash;
+                    float inset = frame.Width / 2f;
+                    g.DrawRectangle(frame, inset, inset, W - frame.Width, H - frame.Width);
+                }
+
+                // Header.
+                int hy = pad;
+                using (var curve = new Pen(t.Ink, 2.2f * scale) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                using (var path = new GraphicsPath())
+                {
+                    float x0 = pad, yb = hy + headerH * 0.78f, yt = hy + headerH * 0.22f;
+                    path.AddLine(x0, yb, x0 + markW * 0.3f, yb);
+                    path.AddBezier(x0 + markW * 0.3f, yb, x0 + markW * 0.55f, yb, x0 + markW * 0.7f, yt + (yb - yt) * 0.3f, x0 + markW, yt);
+                    g.DrawPath(curve, path);
+                }
+                int bx = pad + markW + Px(6);
+                int by = hy + (headerH - brand.Height) / 2;
+                TextRenderer.DrawText(g, "accel", fBrand, new Point(bx, by), t.Ink, One);
+                TextRenderer.DrawText(g, ".", fBrand, new Point(bx + brand.Width, by), t.Pen, One);
+                int tx = bx + brand.Width + dot.Width + Px(12);
+                float ledD = Px(6);
+                using (var led = new SolidBrush(t.Pen)) g.FillEllipse(led, tx, hy + (headerH - ledD) / 2f, ledD, ledD);
+                TextRenderer.DrawText(g, tag, fTag, new Point(tx + Px(11), hy + (headerH - tagSz.Height) / 2), IsMovable ? t.Pen : t.Ink3, One);
+
+                if (IsMovable)
+                {
+                    lockBtnRect = new Rectangle(W - pad - lockW, hy + (headerH - Px(20)) / 2, lockW, Px(20));
+                    using (var b = new SolidBrush(t.Ink)) g.FillRectangle(b, lockBtnRect);
+                    TextRenderer.DrawText(g, "LOCK", fTag, lockBtnRect, t.Sheet, One | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+                else lockBtnRect = Rectangle.Empty;
+
+                using (var rule = new Pen(t.Rule, Math.Max(1f, scale)))
+                {
+                    g.DrawLine(rule, pad, yRule1, W - pad, yRule1);
+                    g.DrawLine(rule, pad, yRule2, W - pad, yRule2);
+
+                    // Cells, with hairline dividers between them.
+                    int x = pad;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        TextRenderer.DrawText(g, labels[i], fLabel, new Rectangle(x, yLabel, widths[i], labelH), t.Ink3, Ell);
+                        var color = i == 1 ? t.Pen : i == 3 ? t.Ink2 : t.Ink;
+                        TextRenderer.DrawText(g, values[i] ?? "", CellMono[i] ? fMono : fValue, new Rectangle(x, yValue, widths[i], valueH), color, Ell);
+                        x += widths[i];
+                        if (i < 3)
+                        {
+                            x += gap;
+                            g.DrawLine(rule, x, yRule1 + Px(5), x, yRule2 - Px(5));
+                            x += gap;
+                        }
+                    }
+                }
+
+                TextRenderer.DrawText(g, FooterText, fFoot, new Point(pad, yFoot), IsMovable ? t.Pen : t.Ink3, One);
+                return new Size(W, H);
+            }
         }
 
         static string Truncate(string s, int maxLen)

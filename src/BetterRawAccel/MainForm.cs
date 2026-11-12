@@ -25,6 +25,11 @@ namespace BetterRawAccel
         readonly Api api;
         readonly McpServer mcp;
         readonly OverlayForm overlay;
+        readonly GameWatch gameWatch = new GameWatch();
+        readonly Timer gameTimer = new Timer { Interval = 2000 };
+        NotifyIcon tray;
+        bool quitting;
+        string hotkeyProblem;
         readonly WebView2 web = new WebView2 { Dock = DockStyle.Fill };
         readonly Timer inputTimer = new Timer { Interval = 16 };
         readonly Stopwatch inputClock = Stopwatch.StartNew();
@@ -109,10 +114,26 @@ namespace BetterRawAccel
             };
 
             Load += async (s, e) => await Start();
-            FormClosing += (s, e) => SaveBounds();
+            FormClosing += (s, e) =>
+            {
+                // With "keep running in the tray", the close button hides the window instead of quitting,
+                // so per-game profiles and hotkeys keep working.
+                if (app.CloseToTray && !quitting && !restartAfterUpdate && e.CloseReason == CloseReason.UserClosing)
+                {
+                    e.Cancel = true;
+                    SaveBounds();
+                    Hide();
+                    ShowTrayTip();
+                    return;
+                }
+                SaveBounds();
+            };
+            gameTimer.Tick += (s, e) => CheckGames();
             FormClosed += (s, e) =>
             {
                 mcp.Dispose();
+                gameTimer.Stop();
+                if (tray != null) { tray.Visible = false; tray.Dispose(); }
                 UnregisterGlobalHotkeys();
                 overlay?.Dispose();
                 if (updater.Ready) updater.LaunchSwap(restartAfterUpdate);
@@ -230,6 +251,9 @@ namespace BetterRawAccel
 
             SetRawInputActive(true);
             RegisterGlobalHotkeys();
+            UpdateTray();
+            gameTimer.Start();
+            CheckGames();
             UpdateOverlay();
             if (app.OverlayEnabled) overlay.SetVisibility(true);
             if (app.McpEnabled) mcp.Start(app.McpPort);
@@ -341,6 +365,13 @@ namespace BetterRawAccel
             }
         }
 
+        /// <summary>The overlay drawn into a bitmap (screen grabs leave out layered windows).</summary>
+        public string CaptureOverlayPngBase64()
+        {
+            var b64 = (string)Invoke((Func<string>)(() => overlay.RenderPngBase64()));
+            return b64;
+        }
+
         public JObject LiveInput()
         {
             double sens = lastIn > 0 ? lastOut / lastIn : 0;
@@ -357,6 +388,7 @@ namespace BetterRawAccel
 
         public JObject McpInfo() => new JObject
         {
+            ["hotkeyProblem"] = hotkeyProblem,
             ["enabled"] = app.McpEnabled,
             ["running"] = mcp.Running,
             ["url"] = mcp.Url,
@@ -374,6 +406,8 @@ namespace BetterRawAccel
             if (keys.Contains("overlayAutoFade")) overlay.AutoFade = app.OverlayAutoFade;
             if (keys.Contains("overlayMovable")) overlay.SetMovable(app.OverlayMovable);
             if (keys.Contains("overlayEnabled")) overlay.SetVisibility(app.OverlayEnabled);
+            if (keys.Contains("closeToTray")) UpdateTray();
+            if (keys.Contains("gameRules")) { gameWatch.Reset(); BeginInvoke((Action)CheckGames); }
             UpdateOverlay();
             if (keys.Contains("mcpEnabled") || keys.Contains("mcpPort"))
             {
@@ -479,8 +513,10 @@ namespace BetterRawAccel
                 UseProfileFromHotkey(idx);
         }
 
-        /// <summary>Hotkeys switch the profile your mice use, in the driver, not only the one shown for editing.</summary>
-        async void UseProfileFromHotkey(int idx)
+        void UseProfileFromHotkey(int idx) => UseProfileFrom(idx, "hotkey", null);
+
+        /// <summary>Switch the profile your mice use, in the driver, from a hotkey, the tray menu or a game rule.</summary>
+        async void UseProfileFrom(int idx, string source, string reason)
         {
             if (engine.Writing) return;   // the previous switch is still inside the driver's one-second delay
             string error = null;
@@ -495,7 +531,7 @@ namespace BetterRawAccel
             }
             UpdateOverlay();
             overlay.TriggerToast(3.5);
-            Post(new JObject { ["event"] = "state", ["state"] = api.FullState(), ["source"] = "hotkey", ["tool"] = "use_profile", ["error"] = error });
+            Post(new JObject { ["event"] = "state", ["state"] = api.FullState(), ["source"] = source, ["tool"] = "use_profile", ["error"] = error, ["reason"] = reason });
         }
 
         void UpdateOverlay()
@@ -505,36 +541,43 @@ namespace BetterRawAccel
             {
                 string prof = engine.InUse;
                 var cur = engine.Active.profiles.FirstOrDefault(p => p.name == prof) ?? engine.Current;
+                string devName = engine.InUseMouse();
 
-                string devName = "All Mice";
-                try
+                double mult = cur != null && cur.outputDPI > 0 ? cur.outputDPI / 1000.0 : 1.0;
+                string sensStr = mult.ToString("0.00") + "\u00d7";
+
+                // cm/360 needs your in-game sensitivity; without it any number would be made up.
+                string cmStr = null, gameLabel = null;
+                if (app.GameSens > 0 && SensitivityCalculator.IsKnownGame(app.Game))
                 {
-                    var cfg = engine.Active;
-                    var own = cfg.devices.Find(d => d.profile == prof);
-                    if (own != null)
-                    {
-                        var connected = MultiHandleDevice.GetList().FirstOrDefault(m => m.id == own.id);
-                        devName = connected != null ? connected.name : own.id;
-                    }
-                    else
-                    {
-                        var firstDev = MultiHandleDevice.GetList().FirstOrDefault();
-                        if (firstDev != null) devName = firstDev.name;
-                    }
+                    double cm = SensitivityCalculator.Cm360(app.PlotDpi, app.GameSens * mult, SensitivityCalculator.GetYaw(app.Game));
+                    cmStr = cm >= 100 ? Math.Round(cm) + " cm" : cm.ToString("0.0") + " cm";
+                    gameLabel = SensitivityCalculator.DisplayName(app.Game);
                 }
-                catch { }
 
-                string mode = cur != null ? cur.argsX.mode.ToString() : "linear";
-                double sens = cur != null && cur.outputDPI > 0 ? cur.outputDPI / 1000.0 : 1.0;
-                string sensStr = sens.ToString("0.00") + "×";
-                double cm = SensitivityCalculator.Cm360(app.PlotDpi, sens, 0.07);
-                string cmStr = Math.Round(cm) + " cm";
-
-                overlay.UpdateInfo(prof, devName, mode, sensStr, cmStr);
+                overlay.UpdateInfo(prof, devName, ModeLabel(cur), sensStr, cmStr, gameLabel);
             }
             catch (Exception ex)
             {
                 Log.Error("update overlay", ex);
+            }
+        }
+
+        /// <summary>The mode as the app's mode tiles name it.</summary>
+        static string ModeLabel(Profile p)
+        {
+            if (p == null) return "Off";
+            var a = p.argsX;
+            switch (a.mode)
+            {
+                case AccelMode.noaccel: return "Off";
+                case AccelMode.classic: return a.exponentClassic == 2 ? "Linear" : "Classic";
+                case AccelMode.natural: return "Natural";
+                case AccelMode.power: return "Power";
+                case AccelMode.synchronous: return "Sync";
+                case AccelMode.jump: return "Jump";
+                case AccelMode.lut: return "Table";
+                default: return a.mode.ToString();
             }
         }
 
@@ -555,20 +598,102 @@ namespace BetterRawAccel
 
         void RegisterGlobalHotkeys()
         {
+            var failed = new List<string>();
+            void Reg(int id, Keys key, string label)
+            {
+                if (!RegisterHotKey(Handle, id, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)key)) failed.Add(label);
+            }
             try
             {
-                RegisterHotKey(Handle, HOTKEY_ID_OVERLAY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.O);
-                RegisterHotKey(Handle, HOTKEY_ID_CYCLE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.P);
-                RegisterHotKey(Handle, HOTKEY_ID_MOVABLE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)Keys.M);
-                for (int i = 0; i < 5; i++)
-                {
-                    RegisterHotKey(Handle, 9011 + i, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)(Keys.D1 + i));
-                }
+                Reg(HOTKEY_ID_OVERLAY, Keys.O, "Ctrl+Alt+O");
+                Reg(HOTKEY_ID_CYCLE, Keys.P, "Ctrl+Alt+P");
+                Reg(HOTKEY_ID_MOVABLE, Keys.M, "Ctrl+Alt+M");
+                for (int i = 0; i < 5; i++) Reg(9011 + i, Keys.D1 + i, "Ctrl+Alt+" + (i + 1));
             }
             catch (Exception ex)
             {
                 Log.Error("register hotkeys", ex);
             }
+            // Another program already owns these keys; say so instead of failing silently.
+            hotkeyProblem = failed.Count == 0 ? null : string.Join(", ", failed) + " are taken by another program, so they do nothing here";
+            if (hotkeyProblem != null) Log.Write("hotkeys: " + hotkeyProblem);
+        }
+
+        // ------------------------------------------------------------ per-game profiles
+
+        string runningGame;
+
+        public string RunningGame() => runningGame;
+
+        void CheckGames()
+        {
+            try
+            {
+                var hit = GameWatch.Running(app.GameRules, GameWatch.IsRunning);
+                runningGame = hit == null ? null : GameWatch.CleanProcessName(hit.Process);
+                if (engine.Writing) return;   // try again on the next tick
+                var want = gameWatch.Next(app.GameRules, app.GameRuleFallback, GameWatch.IsRunning);
+                if (want == null || want == engine.InUse) return;
+                int idx = engine.Edit.profiles.FindIndex(p => p.name == want);
+                if (idx < 0) return;
+                UseProfileFrom(idx, "game", runningGame != null ? runningGame + " is running" : "No listed game is running");
+            }
+            catch (Exception e)
+            {
+                Log.Error("game rules", e);
+            }
+        }
+
+        // ------------------------------------------------------------ tray
+
+        void UpdateTray()
+        {
+            if (!app.CloseToTray)
+            {
+                if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; }
+                return;
+            }
+            if (tray == null)
+            {
+                tray = new NotifyIcon { Icon = Icon, Text = AppInfo.Name, Visible = true };
+                tray.DoubleClick += (s, e) => ShowFromTray();
+                tray.ContextMenuStrip = new ContextMenuStrip();
+                tray.ContextMenuStrip.Opening += (s, e) => BuildTrayMenu();
+            }
+            tray.Visible = true;
+        }
+
+        void BuildTrayMenu()
+        {
+            var m = tray.ContextMenuStrip;
+            m.Items.Clear();
+            m.Items.Add("Open " + AppInfo.Name, null, (s, e) => ShowFromTray()).Font = new Font(m.Font, FontStyle.Bold);
+            m.Items.Add(new ToolStripSeparator());
+            string inUse = engine.InUse;
+            for (int i = 0; i < engine.Edit.profiles.Count; i++)
+            {
+                int idx = i;
+                var name = engine.Edit.profiles[i].name;
+                var item = new ToolStripMenuItem(name, null, (s, e) => UseProfileFrom(idx, "tray", null)) { Checked = name == inUse };
+                m.Items.Add(item);
+            }
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("Quit", null, (s, e) => { quitting = true; Close(); });
+        }
+
+        void ShowFromTray()
+        {
+            Show();
+            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            Activate();
+        }
+
+        bool trayTipShown;
+        void ShowTrayTip()
+        {
+            if (tray == null || trayTipShown) return;
+            trayTipShown = true;
+            tray.ShowBalloonTip(4000, AppInfo.Name, "Still running here, so per-game profiles and hotkeys keep working. Right-click to quit.", ToolTipIcon.Info);
         }
 
         void UnregisterGlobalHotkeys()

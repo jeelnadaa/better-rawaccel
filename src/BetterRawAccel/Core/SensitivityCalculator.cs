@@ -28,6 +28,19 @@ namespace BetterRawAccel.Core
             ["destiny2"] = 0.0066,
         };
 
+        public static bool IsKnownGame(string game) => !string.IsNullOrWhiteSpace(game) && StandardYaws.ContainsKey(game.Trim());
+
+        public static string KnownGames => string.Join(", ", StandardYaws.Keys);
+
+        static readonly Dictionary<string, string> Display = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["source"] = "Source", ["cs2"] = "CS2", ["csgo"] = "CS:GO", ["apex"] = "Apex", ["quake"] = "Quake", ["titanfall"] = "Titanfall",
+            ["teamfortress2"] = "TF2", ["callofduty"] = "CoD", ["cod"] = "CoD", ["warzone"] = "Warzone", ["valorant"] = "Valorant",
+            ["overwatch"] = "Overwatch", ["overwatch2"] = "Overwatch 2", ["fortnite"] = "Fortnite", ["rainbow6"] = "R6", ["r6"] = "R6", ["destiny2"] = "Destiny 2",
+        };
+
+        public static string DisplayName(string game) => game != null && Display.TryGetValue(game.Trim(), out var n) ? n : game;
+
         public static double GetYaw(string game, double customYaw = 0)
         {
             if (customYaw > 0) return customYaw;

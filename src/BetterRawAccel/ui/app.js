@@ -503,9 +503,9 @@ function onEvent(m) {
     case "state":
       applyState(m.state);
       if (m.source === "mcp") { blink("mcp"); notice(m.tool, false, "MCP"); }
-      if (m.source === "hotkey") {
+      if (m.source === "hotkey" || m.source === "tray" || m.source === "game") {
         if (m.error) notice(m.error, true);
-        else { blink("tx"); notice(`Your mice now use “${S.inUse}”.`, false, "HOTKEY"); }
+        else { blink("tx"); notice(`${m.reason ? m.reason + ". " : ""}Your mice now use “${S.inUse}”.`, false, { hotkey: "HOTKEY", tray: "TRAY", game: "GAME" }[m.source]); }
       }
       break;
     case "mcp": if (S && m.mcp) S.mcp = m.mcp; if (m.phase === "start") blink("mcp"); else refreshSheet(); break;
@@ -663,10 +663,18 @@ const call = (method, params, done) => flushNow().then(() => rpc(method, params)
 const intOf = el => { const v = parseInt(el.value, 10); return isFinite(v) ? v : null; };
 
 // sensitivity and cm/360
-let sensCalc = { game: "source", gameSens: 1.0, dpi: 0 };
+let sensCalc = { game: "source", gameSens: 1.0, dpi: 0, loaded: false };
+// Start from the game and sensitivity saved last time (the overlay uses the same values).
+function loadSensCalc() {
+  if (sensCalc.loaded || !S || !S.settings) return;
+  sensCalc.loaded = true;
+  if (S.settings.game) sensCalc.game = S.settings.game;
+  if (S.settings.gameSens > 0) sensCalc.gameSens = S.settings.gameSens;
+}
 function updateCm360Readout() {
   const el = $("cm360V");
   if (!el || !S) return;
+  loadSensCalc();
   const dpi = sensCalc.dpi || S.settings?.plotDpi || 1600;
   const yaws = { source: 0.022, cs2: 0.022, valorant: 0.07, overwatch: 0.0066, overwatch2: 0.0066, fortnite: 0.005555, rainbow6: 0.00572 };
   const yaw = yaws[sensCalc.game] || 0.022;
@@ -678,6 +686,7 @@ function updateCm360Readout() {
 
 if (cm360Btn) {
   cm360Btn.onclick = () => openSheet(cm360Btn, "Sensitivity & cm/360", "angles · game conversions · curve range", body => {
+    loadSensCalc();
     const dpi = sensCalc.dpi || S.settings?.plotDpi || 1600;
     const sens = sensCalc.gameSens;
     const game = sensCalc.game;
@@ -750,6 +759,9 @@ if (cm360Btn) {
         sensCalc.game = gEl.value;
         sensCalc.gameSens = parseFloat(vEl.value) || 1.0;
         sensCalc.dpi = parseInt(dEl.value, 10) || dpi;
+        const save = { game: sensCalc.game, gameSens: sensCalc.gameSens };
+        if (sensCalc.dpi >= 100 && sensCalc.dpi <= 64000 && sensCalc.dpi !== S.settings.plotDpi) save.plotDpi = sensCalc.dpi;
+        rpc("set_app_settings", save).catch(fail);
         updateCm360Readout();
         refreshSheet();
       };
@@ -761,7 +773,32 @@ if (cm360Btn) {
 }
 
 // profiles
-$("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "click to edit · use to switch your mice", body => {
+let ruleDraft = null;
+function gameRulesHtml() {
+  const rules = ruleDraft || (ruleDraft = (S.settings.gameRules || []).map(r => ({ process: r.process, profile: r.profile })));
+  const opts = sel => S.profiles.map(p => `<option ${p === sel ? "selected" : ""}>${esc(p)}</option>`).join("");
+  const running = S.settings.runningGame;
+  return `<div class="grp"><span class="k">Switch for games</span>
+      ${rules.map((r, i) => `<div class="row"><input class="fi w" data-gp="${i}" spellcheck="false" placeholder="VALORANT-Win64-Shipping.exe" value="${esc(r.process)}" aria-label="Program name">
+        <select class="fi" data-gr="${i}" aria-label="Profile for this program">${opts(r.profile)}</select><button class="bt q" data-gx="${i}">Remove</button></div>`).join("")}
+      <div class="row"><button class="bt q" data-a="addrule">Add game</button><span class="sp"></span><small>when none runs</small>
+        <select class="fi" id="grFallback" aria-label="Profile when no listed game runs"><option value="">leave as it is</option>${opts(S.settings.gameRuleFallback)}</select></div>
+      <p>While a listed program runs, your mouse uses its profile; the app checks every two seconds and only switches when a game starts or stops. Use the name from Task Manager's Details tab.${running ? ` <b>Running now: ${esc(running)}</b>.` : ""}${S.settings.closeToTray ? "" : " Rules only work while the app runs: turn on <b>Keep running in the notification area</b> under Driver."}</p></div>`;
+}
+function wireGameRules(body) {
+  const save = () => {
+    const rules = ruleDraft.filter(r => r.process.trim() !== "");
+    call("set_game_rules", { rules, fallback: $("grFallback").value });
+  };
+  body.querySelectorAll("[data-gp]").forEach(el => el.onchange = () => { ruleDraft[+el.dataset.gp].process = el.value.trim(); save(); });
+  body.querySelectorAll("[data-gr]").forEach(el => el.onchange = () => { ruleDraft[+el.dataset.gr].profile = el.value; save(); });
+  body.querySelectorAll("[data-gx]").forEach(el => el.onclick = () => { ruleDraft.splice(+el.dataset.gx, 1); save(); refreshSheet(); });
+  body.querySelector('[data-a="addrule"]').onclick = () => { ruleDraft.push({ process: "", profile: S.profile.name }); refreshSheet(); const ins = body.querySelectorAll("[data-gp]"); if (ins.length) ins[ins.length - 1].focus(); };
+  $("grFallback").onchange = save;
+}
+
+$("profBtn").onclick = () => { ruleDraft = null; profSheet(); };
+const profSheet = () => openSheet($("profBtn"), "Profiles", "click to edit · use to switch your mice", body => {
   const cur = S.profile.name, inDrv = new Set(S.driverProfiles), using = cur === S.inUse;
   body.innerHTML = `<div class="grp">
       <div class="plist" role="radiogroup">${S.profiles.map((n, i) =>
@@ -771,9 +808,11 @@ $("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "click to edit 
       <div class="row"><button class="bt" data-a="new">New</button><button class="bt" data-a="dup">Duplicate</button><span class="sp"></span><button class="bt q" data-a="del" ${S.sel === 0 ? "disabled" : ""}>Delete</button></div>
       <div class="row" style="margin-top:6px"><button class="bt q" data-a="share">Copy share code</button><button class="bt q" data-a="import">Import share code</button></div>
     </div>
+    ${gameRulesHtml()}
     <div class="grp"><p>Clicking a profile opens it for editing; your mice keep running the one marked <b class="use">in use</b>. <b>Use</b> switches your mouse to the open profile and writes that to the driver at once, without writing your other unsaved edits. If you gave mice their own profile under Device, only those switch, so a touchpad stays as it is; otherwise every mouse switches. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> cycles profiles from anywhere, and <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>5</kbd> picks one.</p></div>`;
   const unique = base => { let n = base, i = 2; const has = x => S.profiles.some(p => p.toLowerCase() === x.toLowerCase()); while (has(n)) n = `${base} ${i++}`; return n; };
   body.querySelectorAll(".plist button").forEach(b => b.onclick = () => call("select_profile", { profile: +b.dataset.i }));
+  wireGameRules(body);
   body.querySelector('[data-a="use"]').onclick = () => {
     const name = S.profile.name;
     notice(`Switching your mice to “${name}”…`, false, "DRIVER");
@@ -863,6 +902,8 @@ $("sysBtn").onclick = () => openSheet($("sysBtn"), "Driver & app", "start-up · 
     <div class="grp"><span class="k">Start-up</span>
       <div class="row"><label class="ck"><input type="checkbox" data-s="startWithWindows" ${s.startWithWindows ? "checked" : ""}>Apply my settings when I sign in to Windows</label></div>
       <div class="row"><label class="ck"><input type="checkbox" data-s="applyOnStart" ${s.applyOnStart ? "checked" : ""}>Write saved settings when this app starts</label></div>
+      <div class="row"><label class="ck"><input type="checkbox" data-s="closeToTray" ${s.closeToTray ? "checked" : ""}>Keep running in the notification area when I close the window</label></div>
+      ${m.hotkeyProblem ? `<p style="color:var(--pen)">${esc(m.hotkeyProblem)}.</p>` : ""}
       <p>The driver forgets its settings on every restart. Sign-in apply uses Raw Accel's small writer.exe, so this window does not need to open.</p></div>
     <div class="grp"><span class="k">MCP server</span>
       <div class="row"><label class="ck"><input type="checkbox" data-s="mcpEnabled" ${s.mcpEnabled ? "checked" : ""}>Let AI tools on this PC control this window</label><span class="sp"></span>

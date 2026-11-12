@@ -134,7 +134,7 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 | `get_curve` | Sensitivity sampled across input speeds, for the edited or the driver's curve |
 | `evaluate` | Sensitivity at one input speed |
 | `get_live_input` | Current hand speed and recent peak |
-| `capture_window` | A PNG of the window as it looks now |
+| `capture_window` | A PNG of the window as it looks now, or of the in-game overlay with `{"target": "overlay"}` |
 | `update_profile` | Change any values of the selected profile |
 | `set_mode` | Switch acceleration mode |
 | `undo`, `redo`, `revert` | Step through edits, or drop everything not written |
@@ -150,7 +150,8 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 | `pin_reference_curve`, `clear_reference_curve`, `get_reference_curve` | Pin and overlay a reference baseline curve on the plot to compare live edits |
 | `get_speed_histogram`, `reset_speed_histogram` | Retrieve hand speed distribution statistics (median, 90th percentile, peak) and bucket counts |
 | `export_plot_image` | Export the plot canvas image as a PNG |
-| `toggle_overlay`, `get_overlay_state` | Toggle in-game HUD overlay (visible, position, auto-fade) showing active profile and mouse device |
+| `toggle_overlay`, `get_overlay_state` | Show, hide or unlock the in-game overlay, and read what it shows (profile in use, mouse, curve, cm/360) |
+| `get_game_rules`, `set_game_rules` | Per-game profiles: while a listed program runs, your mouse uses its profile; a fallback profile for when none runs |
 | `get_app_settings`, `set_app_settings` | Theme (14 light and dark themes), typeface, plot view and scale, HUD overlay, start-up, updates |
 | `show_panel` | Open or close a panel (`profiles`, `devices`, `system`, `help`, `themes`, `fonts`, `cm360`, `none`) |
 | `check_for_updates`, `install_update` | Look for and install a newer release |

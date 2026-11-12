@@ -52,6 +52,9 @@ namespace BetterRawAccel.Tests
         [TestMethod]
         public void TestStartupShortcutCreateAndRemove()
         {
+            // Never touch a real sign-in shortcut on the machine running the tests.
+            if (Startup.IsEnabled()) Assert.Inconclusive("A real 'apply at sign-in' shortcut exists; leaving it alone.");
+
             // Ensure settings.json exists in AppDir so Startup.Set(true) does not reject it
             string settingsPath = Paths.SettingsFile;
             bool createdSettings = false;

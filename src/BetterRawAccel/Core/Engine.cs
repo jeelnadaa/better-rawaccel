@@ -152,6 +152,26 @@ namespace BetterRawAccel.Core
         /// <summary>The profile your mouse uses in the driver right now.</summary>
         public string InUse => InUseIn(Active);
 
+        /// <summary>Name of the mouse that runs the in-use profile, for display.</summary>
+        public string InUseMouse()
+        {
+            try
+            {
+                var mice = MouseProfiles(Active);
+                var name = InUse;
+                var m = mice.Where(x => x.Profile == name).OrderByDescending(x => x.Chosen).FirstOrDefault();
+                if (m.Id == null) return "No mouse";
+                int others = mice.Count(x => x.Profile == name) - 1;
+                var label = string.IsNullOrWhiteSpace(m.Name) ? "Mouse" : m.Name;
+                return others > 0 ? label + " +" + others : label;
+            }
+            catch (Exception e)
+            {
+                Log.Error("in-use mouse", e);
+                return "Mouse";
+            }
+        }
+
         /// <summary>
         /// Switch "your mouse" to the named profile. If some connected mice were given a profile of their own,
         /// only those switch, so a touchpad left on the first profile stays as it is. Otherwise every connected
@@ -361,8 +381,14 @@ namespace BetterRawAccel.Core
                 Edit.profiles.RemoveAt(i);
                 Edit.accels.RemoveAt(i);
                 foreach (var d in Edit.devices.Where(d => d.profile == name)) d.profile = "";
-                Sel = Math.Min(Sel, Edit.profiles.Count - 1);
+                // Keep editing the same profile when one above it goes away.
                 if (Sel == i) Sel = 0;
+                else if (Sel > i) Sel--;
+                if (App.GameRules.RemoveAll(r => r.Profile == name) > 0 | App.GameRuleFallback == name)
+                {
+                    if (App.GameRuleFallback == name) App.GameRuleFallback = "";
+                    App.Save();
+                }
             });
         }
 
@@ -377,6 +403,10 @@ namespace BetterRawAccel.Core
                 p.name = name;
                 Edit.SetProfileAt(i, p);
                 foreach (var d in Edit.devices.Where(d => d.profile == old)) d.profile = name;
+                bool touched = false;
+                foreach (var r in App.GameRules.Where(r => r.Profile == old)) { r.Profile = name; touched = true; }
+                if (App.GameRuleFallback == old) { App.GameRuleFallback = name; touched = true; }
+                if (touched) App.Save();
             });
         }
 
@@ -726,6 +756,11 @@ namespace BetterRawAccel.Core
             ["overlayMovable"] = App.OverlayMovable,
             ["overlayCustomX"] = App.OverlayCustomX,
             ["overlayCustomY"] = App.OverlayCustomY,
+            ["game"] = App.Game,
+            ["gameSens"] = App.GameSens,
+            ["closeToTray"] = App.CloseToTray,
+            ["gameRules"] = new JArray(App.GameRules.Select(r => new JObject { ["process"] = r.Process, ["profile"] = r.Profile })),
+            ["gameRuleFallback"] = App.GameRuleFallback,
         };
 
         /// <summary>Compact summary for MCP clients: no curve arrays, no metadata.</summary>

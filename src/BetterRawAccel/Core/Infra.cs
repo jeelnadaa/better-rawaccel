@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Reflection;
 using Newtonsoft.Json;
@@ -108,6 +110,15 @@ namespace BetterRawAccel.Core
         public bool OverlayMovable = false;
         public int OverlayCustomX = -1;
         public int OverlayCustomY = -1;
+        /// <summary>Game and in-game sensitivity from the cm/360 sheet; used by the overlay. Empty / 0 = not set.</summary>
+        public string Game = "";
+        public double GameSens = 0;
+        /// <summary>Per-game profiles: while one of these programs runs, your mouse uses its profile.</summary>
+        public List<GameRule> GameRules = new List<GameRule>();
+        /// <summary>Profile to go back to when none of the games runs; empty = leave the profile as it is.</summary>
+        public string GameRuleFallback = "";
+        /// <summary>Closing the window keeps the app running in the notification area.</summary>
+        public bool CloseToTray = false;
 
         public static AppSettings Load()
         {
@@ -134,6 +145,8 @@ namespace BetterRawAccel.Core
             if (string.IsNullOrWhiteSpace(Theme)) Theme = "paper";
             if (string.IsNullOrWhiteSpace(Font)) Font = "satoshi";
             if (PlotView != "vel" && PlotView != "gain") PlotView = "sens";
+            GameRules = (GameRules ?? new List<GameRule>()).Where(r => r != null && !string.IsNullOrWhiteSpace(r.Process) && !string.IsNullOrWhiteSpace(r.Profile)).ToList();
+            if (GameRuleFallback == null) GameRuleFallback = "";
             if (OverlayPosition != "top-left" && OverlayPosition != "bottom-right" && OverlayPosition != "top-center" && OverlayPosition != "custom")
                 OverlayPosition = "top-right";
             if (string.IsNullOrWhiteSpace(OverlayHotkey)) OverlayHotkey = "Ctrl+Alt+O";
@@ -151,5 +164,12 @@ namespace BetterRawAccel.Core
                 Log.Error("app settings save", e);
             }
         }
+    }
+
+    public sealed class GameRule
+    {
+        /// <summary>Program name as Task Manager's Details tab shows it, with or without ".exe".</summary>
+        public string Process = "";
+        public string Profile = "";
     }
 }

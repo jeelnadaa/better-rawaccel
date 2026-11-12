@@ -57,6 +57,7 @@ Tools:
 | Devices | `list_devices`, `set_device`, `set_default_device`, `remove_device` |
 | Files | `export_settings`, `import_settings` |
 | App | `get_app_settings`, `set_app_settings` (theme, typeface, plot view), `show_panel`, `check_for_updates`, `install_update` |
+| Games and overlay | `get_game_rules`, `set_game_rules`, `toggle_overlay`, `get_overlay_state`, `calculate_cm360`, `convert_sensitivity` |
 
 Safety: the server listens on the loopback address only and refuses requests whose `Host` or `Origin` is not local. Any program on your PC can already talk to the Raw Accel driver directly, so MCP adds convenience, not privilege. Turn it off under **Driver** if you do not use it.
 

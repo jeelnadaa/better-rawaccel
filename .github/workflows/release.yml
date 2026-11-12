@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: dotnet build src/BetterRawAccel/BetterRawAccel.csproj -c Release -p:Platform=x64 -p:Version=${{ env.VERSION }}
 
+      - name: Test
+        run: dotnet test tests/BetterRawAccel.Tests/BetterRawAccel.Tests.csproj --nologo
+
       - name: Package
         shell: pwsh
         run: |

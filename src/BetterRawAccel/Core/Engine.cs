@@ -94,8 +94,114 @@ namespace BetterRawAccel.Core
             DriverVersion = VersionHelper.ValidOrThrow();
             Meta = JObject.Parse(File.ReadAllText(Path.Combine(Paths.UiDir, "meta.json")));
             ReadActive();
-            Edit = LoadUserSettings() ?? Parse(activeJson);
-            Sel = 0;
+            var saved = LoadUserSettings();
+            Edit = saved ?? Parse(activeJson);
+
+            // Open on the profile your mouse uses, not simply the first one in the list.
+            Sel = Math.Max(0, Edit.profiles.FindIndex(p => p.name == InUseIn(Edit)));
+
+            // The driver forgets everything on a Windows restart, while settings.json remembers.
+            if (saved != null && Edit.ToJSON() != activeJson)
+                StartNote = "The driver is not running your saved settings (Windows forgets them on every restart). " +
+                            "Write to driver to bring them back, or turn on apply at sign-in under Driver.";
+        }
+
+        /// <summary>Shown once when the window opens, or null.</summary>
+        public string StartNote { get; private set; }
+
+        // ---------------------------------------------------------------- which profile the mouse uses
+
+        /// <summary>
+        /// The profile the driver gives each connected mouse: its own assignment if it has one,
+        /// otherwise the first profile. Mice the driver leaves alone are skipped.
+        /// </summary>
+        static List<(string Id, string Name, string Profile, bool Chosen)> MouseProfiles(DriverConfig cfg)
+        {
+            var names = new HashSet<string>(cfg.profiles.Select(p => p.name));
+            var res = new List<(string, string, string, bool)>();
+            foreach (var dev in MultiHandleDevice.GetList())
+            {
+                var own = cfg.devices.Find(d => d.id == dev.id);
+                bool disabled = own != null ? own.config.disable : cfg.defaultDeviceConfig.disable;
+                if (disabled) continue;
+                bool chosen = own != null && !string.IsNullOrEmpty(own.profile) && names.Contains(own.profile);
+                res.Add((dev.id, dev.name, chosen ? own.profile : cfg.profiles[0].name, chosen));
+            }
+            return res;
+        }
+
+        /// <summary>
+        /// The profile your mouse uses. A mouse that was given a profile on purpose wins over one that
+        /// only falls back to the first profile (a laptop touchpad, for example).
+        /// </summary>
+        static string InUseIn(DriverConfig cfg)
+        {
+            try
+            {
+                var mice = MouseProfiles(cfg);
+                var pick = mice.FirstOrDefault(m => m.Chosen);
+                return pick.Id != null ? pick.Profile : cfg.profiles[0].name;
+            }
+            catch (Exception e)
+            {
+                Log.Error("in-use profile", e);
+                return cfg.profiles[0].name;
+            }
+        }
+
+        /// <summary>The profile your mouse uses in the driver right now.</summary>
+        public string InUse => InUseIn(Active);
+
+        /// <summary>
+        /// Switch "your mouse" to the named profile. If some connected mice were given a profile of their own,
+        /// only those switch, so a touchpad left on the first profile stays as it is. Otherwise every connected
+        /// mouse switches. Mice the driver leaves alone are never touched.
+        /// </summary>
+        static void AssignToMice(DriverConfig cfg, string name)
+        {
+            bool isFirst = cfg.profiles[0].name == name;
+            var mice = MouseProfiles(cfg);
+            var targets = mice.Where(m => m.Chosen).ToList();
+            if (targets.Count == 0) targets = mice;
+            foreach (var m in targets)
+            {
+                var own = cfg.devices.Find(d => d.id == m.Id);
+                if (own == null)
+                {
+                    // A mouse without its own settings already uses the first profile.
+                    if (isFirst) continue;
+                    own = new DeviceSettings { id = m.Id, name = m.Name ?? "", profile = "", config = cfg.defaultDeviceConfig };
+                    cfg.devices.Add(own);
+                }
+                // Named even when it is the first profile, so the mouse stays "chosen" for the next switch.
+                own.profile = name;
+            }
+        }
+
+        /// <summary>
+        /// Make your mouse use a profile (see AssignToMice for which mice) and write that to the driver at once.
+        /// If the profile is already in the driver, only the mouse assignment is written, so other unwritten
+        /// edits stay unwritten. A profile that was never written goes in together with every other edit.
+        /// </summary>
+        public async Task UseProfileAsync(JToken which)
+        {
+            if (Writing) throw new InvalidOperationException("A write is already in progress");
+            int i = FindProfile(which);
+            var name = Edit.profiles[i].name;
+            Mutate("use", () => AssignToMice(Edit, name));
+            Sel = i;
+
+            if (!Active.profiles.Any(p => p.name == name))
+            {
+                await ApplyAsync();
+                return;
+            }
+
+            var cfg = Parse(activeJson);
+            AssignToMice(cfg, name);
+            var err = cfg.Errors();
+            if (err != null) throw new InvalidOperationException(Tidy(err));
+            await WriteAsync(cfg, cfg.ToJSON());
         }
 
         void ReadActive()
@@ -384,7 +490,13 @@ namespace BetterRawAccel.Core
             if (err != null) throw new InvalidOperationException(Tidy(err));
 
             var json = Edit.ToJSON();
-            var cfg = Parse(json);
+            await WriteAsync(Parse(json), json);
+        }
+
+        /// <summary>Send a whole config to the driver, then remember it as what the driver has and save it.</summary>
+        async Task WriteAsync(DriverConfig cfg, string json)
+        {
+            if (Writing) throw new InvalidOperationException("A write is already in progress");
             Writing = true;
             try
             {
@@ -574,6 +686,8 @@ namespace BetterRawAccel.Core
             st["meta"] = Meta;
             st["profiles"] = new JArray(Edit.profiles.Select(x => x.name));
             st["driverProfiles"] = new JArray(Active.profiles.Select(x => x.name));
+            st["inUse"] = InUse;
+            st["startNote"] = StartNote;
             st["driverProfile"] = twin == null ? null : ToDto(twin);
             st["driverCurve"] = twin == null ? null : Curve(twin, CurvePoints, MaxSpeed);
             st["thumbs"] = Thumbs();
@@ -618,6 +732,7 @@ namespace BetterRawAccel.Core
         public JObject Summary() => new JObject
         {
             ["selectedProfile"] = Current.name,
+            ["inUseProfile"] = InUse,
             ["profiles"] = new JArray(Edit.profiles.Select(x => x.name)),
             ["profile"] = ToDto(Current, compact: true),
             ["unwrittenChanges"] = Pending,

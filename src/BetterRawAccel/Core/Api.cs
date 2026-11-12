@@ -198,15 +198,26 @@ namespace BetterRawAccel.Core
             Add("undo", "Undo the last edit.", null, true, a => { engine.Undo(); return engine.Summary(); });
             Add("redo", "Redo the last undone edit.", null, true, a => { engine.Redo(); return engine.Summary(); });
 
-            Add("list_profiles", "Profile names in the editor and in the driver. The first profile is the default for all devices.", null, false, a => new JObject
+            Add("list_profiles", "Profile names in the editor and in the driver, the one open for editing, and the one your mice use in the driver right now.", null, false, a => new JObject
             {
                 ["editing"] = new JArray(engine.Edit.profiles.Select(p => p.name)),
                 ["driver"] = new JArray(engine.Active.profiles.Select(p => p.name)),
                 ["selected"] = engine.Current.name,
+                ["inUse"] = engine.InUse,
             });
 
             var which = S("{'type':'object','required':['profile'],'properties':{'profile':{'type':['string','integer'],'description':'name or index'}}}");
-            Add("select_profile", "Choose which profile the window edits.", which, true, a =>
+            Add("use_profile",
+                "Make your mouse use this profile and write that to the driver at once (about one second). Mice that were given a profile of their own under Devices switch; if none were, every connected mouse switches. " +
+                "If the profile is already in the driver, other unwritten edits stay unwritten. Also opens the profile for editing.",
+                which, true, async a =>
+                {
+                    if (a["profile"] == null) throw new InvalidOperationException("\"profile\" is required");
+                    await engine.UseProfileAsync(a["profile"]);
+                    return engine.Summary();
+                });
+
+            Add("select_profile", "Open a profile for editing. This does not change which profile your mice use; use_profile does that.", which, true, a =>
             {
                 if (a["profile"] == null) throw new InvalidOperationException("\"profile\" is required");
                 engine.SelectProfile(a["profile"]);

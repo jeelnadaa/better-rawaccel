@@ -49,6 +49,15 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] Offline fonts: Archivo and IBM Plex Mono are bundled; Satoshi and Cabinet Grotesk stay online-only for licence reasons and fall back to Archivo
 - [x] Live marker ignores mice the driver leaves alone and mice on another profile; DPI normalisation needs no special handling (verified: handle routing rules for active vs other profile and disabled devices)
 
+## Profile in use (fixed 2026-11-12)
+- [x] The app opens on the profile your mouse uses in the driver, not always the first one
+- [x] "Use" in the Profile sheet (and the `use_profile` MCP tool) switches your mouse and writes it to the driver at once; other unwritten edits stay unwritten
+- [x] `Ctrl`+`Alt`+`P` and `Ctrl`+`Alt`+`1`–`5` switch the profile in the driver; before, they only changed what the window showed
+- [x] Title block and Profile sheet show which profile is in use; the overlay shows the profile in use rather than the one being edited
+- [x] A mouse given its own profile under Device switches; a touchpad left on the first profile stays as it is
+- [x] On start, a note says when the driver is not running your saved settings (after a Windows restart)
+- Checked on the real driver with the D: install's settings: use, close, reopen, hotkey, then the driver was confirmed identical to its state before the test
+
 ## MCP (inside the running app, not headless)
 - [x] HTTP MCP server on 127.0.0.1 hosted by the GUI process; every change shows in the window
 - [x] Requests with a foreign `Origin` are refused (checked: 403); on/off switch and port in the Driver sheet

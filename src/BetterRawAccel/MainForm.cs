@@ -466,24 +466,36 @@ namespace BetterRawAccel
         void CycleProfile()
         {
             if (InvokeRequired) { BeginInvoke((Action)(CycleProfile)); return; }
-            if (engine.Edit.profiles.Count <= 1) return;
-            int next = (engine.Sel + 1) % engine.Edit.profiles.Count;
-            engine.SelectProfile(next);
-            UpdateOverlay();
-            overlay.TriggerToast(3.5);
-            PushState("hotkey", "cycle_profile");
+            int n = engine.Edit.profiles.Count;
+            if (n <= 1) return;
+            int cur = engine.Edit.profiles.FindIndex(p => p.name == engine.InUse);
+            UseProfileFromHotkey((cur + 1) % n);
         }
 
         void SwitchProfileByIndex(int idx)
         {
             if (InvokeRequired) { BeginInvoke((Action)(() => SwitchProfileByIndex(idx))); return; }
-            if (idx >= 0 && idx < engine.Edit.profiles.Count && idx != engine.Sel)
+            if (idx >= 0 && idx < engine.Edit.profiles.Count && engine.Edit.profiles[idx].name != engine.InUse)
+                UseProfileFromHotkey(idx);
+        }
+
+        /// <summary>Hotkeys switch the profile your mice use, in the driver, not only the one shown for editing.</summary>
+        async void UseProfileFromHotkey(int idx)
+        {
+            if (engine.Writing) return;   // the previous switch is still inside the driver's one-second delay
+            string error = null;
+            try
             {
-                engine.SelectProfile(idx);
-                UpdateOverlay();
-                overlay.TriggerToast(3.5);
-                PushState("hotkey", "select_profile");
+                await engine.UseProfileAsync(idx);
             }
+            catch (Exception ex)
+            {
+                if (!(ex is InvalidOperationException)) Log.Error("hotkey profile", ex);
+                error = Friendly(ex);
+            }
+            UpdateOverlay();
+            overlay.TriggerToast(3.5);
+            Post(new JObject { ["event"] = "state", ["state"] = api.FullState(), ["source"] = "hotkey", ["tool"] = "use_profile", ["error"] = error });
         }
 
         void UpdateOverlay()
@@ -491,8 +503,8 @@ namespace BetterRawAccel
             if (InvokeRequired) { BeginInvoke((Action)UpdateOverlay); return; }
             try
             {
-                var cur = engine.Current;
-                string prof = cur?.name ?? "default";
+                string prof = engine.InUse;
+                var cur = engine.Active.profiles.FirstOrDefault(p => p.name == prof) ?? engine.Current;
 
                 string devName = "All Mice";
                 try

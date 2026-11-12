@@ -140,7 +140,8 @@ You should get a JSON list of tools. If you do, the server is fine and any probl
 | `undo`, `redo`, `revert` | Step through edits, or drop everything not written |
 | `apply` | Write to the driver and save `settings.json` |
 | `reset_driver` | Turn acceleration off in the driver |
-| `list_profiles`, `select_profile`, `create_profile`, `rename_profile`, `delete_profile` | Manage profiles |
+| `use_profile` | Switch the profile your mouse uses and write it to the driver at once |
+| `list_profiles`, `select_profile`, `create_profile`, `rename_profile`, `delete_profile` | Manage profiles (`select_profile` only opens one for editing; `list_profiles` says which is in use) |
 | `list_devices`, `set_device`, `set_default_device`, `remove_device` | Per-mouse DPI, polling rate, profile |
 | `export_settings`, `import_settings` | Settings as Raw Accel `settings.json` text |
 | `export_profile_code`, `import_profile_code` | Share and import individual profiles as compact short codes (`RA1:...`) |

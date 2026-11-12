@@ -72,7 +72,7 @@ const TIPS = {
   theme:   ["Sheet", "Colour theme. Remembered on this machine."],
   font:    ["Type", "Interface typeface. Numbers always stay in IBM Plex Mono."],
   help:    ["How to use", "Every control and shortcut on one sheet. Shortcut <kbd>?</kbd>"],
-  profile: ["Profile", "The profile being edited. Open to switch, add, duplicate, rename or delete profiles."],
+  profile: ["Profile", "The profile open for editing. “In use” means your mice run it now; “editing” means they run another one. Open to use, add, duplicate, rename or delete profiles."],
   device:  ["Device", "Plot scale, and per-mouse settings: DPI, polling rate, profile, or leave a mouse alone."],
   driver:  ["Driver", "Connection to the Raw Accel driver. The square blinks on a write or an MCP call. Open for start-up, MCP, updates, import and export."],
   cm360:   ["Sensitivity & cm/360", "Calculate cm/360, compare sensitivities across games (Source/CS2, Valorant, Overwatch 2, Apex, Fortnite, etc.), and view the effective range of your curve."],
@@ -385,6 +385,7 @@ function render(full) {
 
   if (full) {
     $("profV").textContent = S.profile.name;
+    $("profK").textContent = S.profile.name === S.inUse ? "Profile · in use" : "Profile · editing";
     $("devV").textContent = `${S.settings.plotDpi} dpi · ${S.settings.plotPollRate} Hz`;
     $("rev").textContent = `v${S.app.version}${S.app.dev ? " dev" : ""} · driver ${S.app.driverVersion}`;
     $("drvV").textContent = "connected";
@@ -502,6 +503,10 @@ function onEvent(m) {
     case "state":
       applyState(m.state);
       if (m.source === "mcp") { blink("mcp"); notice(m.tool, false, "MCP"); }
+      if (m.source === "hotkey") {
+        if (m.error) notice(m.error, true);
+        else { blink("tx"); notice(`Your mice now use “${S.inUse}”.`, false, "HOTKEY"); }
+      }
       break;
     case "mcp": if (S && m.mcp) S.mcp = m.mcp; if (m.phase === "start") blink("mcp"); else refreshSheet(); break;
     case "update":
@@ -756,18 +761,24 @@ if (cm360Btn) {
 }
 
 // profiles
-$("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "the first one is the default for every device", body => {
-  const cur = S.profile.name, inDrv = new Set(S.driverProfiles);
+$("profBtn").onclick = () => openSheet($("profBtn"), "Profiles", "click to edit · use to switch your mice", body => {
+  const cur = S.profile.name, inDrv = new Set(S.driverProfiles), using = cur === S.inUse;
   body.innerHTML = `<div class="grp">
       <div class="plist" role="radiogroup">${S.profiles.map((n, i) =>
-        `<button role="radio" aria-checked="${i === S.sel}" data-i="${i}"><i>${String(i + 1).padStart(2, "0")}</i>${esc(n)}<span class="x">${i === 0 ? "default · " : ""}${inDrv.has(n) ? "in driver" : "not written"}</span></button>`).join("")}</div>
+        `<button role="radio" aria-checked="${i === S.sel}" data-i="${i}"><i>${String(i + 1).padStart(2, "0")}</i>${esc(n)}<span class="x">${n === S.inUse ? `<b class="use">in use</b>` : inDrv.has(n) ? "in driver" : "not written"}</span></button>`).join("")}</div>
+      <div class="row"><button class="bt" data-a="use" ${using || S.writing ? "disabled" : ""}>${using ? "Your mice use this profile" : `Use “${esc(cur)}”`}</button><small>${using ? "" : "switches your mouse and writes to the driver"}</small></div>
       <div class="row"><input class="fi w" id="pfName" maxlength="200" spellcheck="false" value="${esc(cur)}" aria-label="Profile name"><button class="bt" data-a="rename">Rename</button></div>
       <div class="row"><button class="bt" data-a="new">New</button><button class="bt" data-a="dup">Duplicate</button><span class="sp"></span><button class="bt q" data-a="del" ${S.sel === 0 ? "disabled" : ""}>Delete</button></div>
       <div class="row" style="margin-top:6px"><button class="bt q" data-a="share">Copy share code</button><button class="bt q" data-a="import">Import share code</button></div>
     </div>
-    <div class="grp"><p>Each profile is a full set of curve and output settings. Assign a profile to a mouse under Device. Changes here reach the driver when you write.</p></div>`;
+    <div class="grp"><p>Clicking a profile opens it for editing; your mice keep running the one marked <b class="use">in use</b>. <b>Use</b> switches your mouse to the open profile and writes that to the driver at once, without writing your other unsaved edits. If you gave mice their own profile under Device, only those switch, so a touchpad stays as it is; otherwise every mouse switches. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> cycles profiles from anywhere, and <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>5</kbd> picks one.</p></div>`;
   const unique = base => { let n = base, i = 2; const has = x => S.profiles.some(p => p.toLowerCase() === x.toLowerCase()); while (has(n)) n = `${base} ${i++}`; return n; };
   body.querySelectorAll(".plist button").forEach(b => b.onclick = () => call("select_profile", { profile: +b.dataset.i }));
+  body.querySelector('[data-a="use"]').onclick = () => {
+    const name = S.profile.name;
+    notice(`Switching your mice to “${name}”…`, false, "DRIVER");
+    call("use_profile", { profile: S.sel }, () => { blink("tx"); notice(`Your mice now use “${name}”.`, false, "DRIVER"); });
+  };
   body.querySelector('[data-a="rename"]').onclick = () => call("rename_profile", { name: $("pfName").value.trim() });
   $("pfName").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("pfName").blur(); call("rename_profile", { name: $("pfName").value.trim() }); } };
   body.querySelector('[data-a="new"]').onclick = () => call("create_profile", { name: unique("profile") });
@@ -1318,6 +1329,7 @@ requestFrame();
 if (!wv) $("boot").textContent = "This is the interface of Better Raw Accel. Start BetterRawAccel.exe to use it.";
 else rpc("ui_state").then(st => {
   applyState(st);
+  if (st.startNote) setTimeout(() => notice(st.startNote, true, "DRIVER"), 600);
   shown.set(target); if (hasY) shownY.set(targetY);     // first frame is drawn in place, not morphed from flat
   $("boot").classList.add("off");
   requestAnimationFrame(() => { placeSel(); fitTiles(); });

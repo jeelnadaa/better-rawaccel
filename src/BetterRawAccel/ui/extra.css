@@ -138,3 +138,8 @@ a.lk:hover { text-decoration-color: var(--pen); }
 .plot .legend { top: auto; bottom: 58px; right: 28px; padding: 3px 8px; background: var(--sheet); border: 1px solid var(--rule2); }
 .plot .anno { right: 250px; }
 @media (max-width: 900px) { .views button { padding-left: 6px; padding-right: 6px; } .plot .anno span { display: none; } }
+
+/* the profile your mice run in the driver */
+b.use { font: 600 9.5px var(--mono); letter-spacing: .04em; color: var(--pen); text-transform: uppercase; }
+.plist button[aria-checked="true"] b.use { color: var(--pen-on-ink); }
+.grp p b { font-weight: var(--bd-w); color: var(--ink); }

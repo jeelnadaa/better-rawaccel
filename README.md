@@ -53,7 +53,7 @@ Tools:
 | Read | `get_state`, `list_modes`, `get_profile`, `get_curve`, `evaluate`, `get_live_input`, `capture_window` |
 | Edit | `update_profile`, `set_mode`, `undo`, `redo`, `revert` |
 | Driver | `apply`, `reset_driver` |
-| Profiles | `list_profiles`, `select_profile`, `create_profile`, `rename_profile`, `delete_profile` |
+| Profiles | `use_profile`, `list_profiles`, `select_profile`, `create_profile`, `rename_profile`, `delete_profile` |
 | Devices | `list_devices`, `set_device`, `set_default_device`, `remove_device` |
 | Files | `export_settings`, `import_settings` |
 | App | `get_app_settings`, `set_app_settings` (theme, typeface, plot view), `show_panel`, `check_for_updates`, `install_update` |

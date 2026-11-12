@@ -545,12 +545,14 @@ namespace BetterRawAccel
 
                 double mult = cur != null && cur.outputDPI > 0 ? cur.outputDPI / 1000.0 : 1.0;
                 string sensStr = mult.ToString("0.00") + "\u00d7";
+                // With a device DPI set, the driver also scales output by 1000 / DPI; cm/360 must include that.
+                double norm = Engine.DpiNormFor(engine.Active, prof).Factor;
 
                 // cm/360 needs your in-game sensitivity; without it any number would be made up.
                 string cmStr = null, gameLabel = null;
                 if (app.GameSens > 0 && SensitivityCalculator.IsKnownGame(app.Game))
                 {
-                    double cm = SensitivityCalculator.Cm360(app.PlotDpi, app.GameSens * mult, SensitivityCalculator.GetYaw(app.Game));
+                    double cm = SensitivityCalculator.Cm360(app.PlotDpi, app.GameSens * mult * norm, SensitivityCalculator.GetYaw(app.Game));
                     cmStr = cm >= 100 ? Math.Round(cm) + " cm" : cm.ToString("0.0") + " cm";
                     gameLabel = SensitivityCalculator.DisplayName(app.Game);
                 }

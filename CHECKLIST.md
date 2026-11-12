@@ -71,6 +71,14 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] The release workflow did not run the tests; it now does, and a failing test stops the release
 - The log rotation test only checks that writing works, not that rotation happens; `tests/ui_animation_and_controls_tests.js` re-implements the animation maths rather than testing `app.js`
 
+## Device DPI (fixed 2026-11-12)
+- [x] With a device DPI set, the driver scales output by 1000 / DPI and measures speed in inches per second. cm/360 in `calculate_cm360`, `evaluate`, the title block and the overlay now include that factor (checked: Valorant 0.35, 1200 DPI, sensitivity 0.93 gives 40.1 cm/360 everywhere, matching a hand calculation)
+- [x] `calculate_cm360` applied the profile's sensitivity twice (0.93 became 0.8649)
+- [x] Speeds are labelled in/s instead of counts/ms when the mouse running the profile has a DPI set
+- [x] The title-block cm/360 now follows the saved game and sensitivity instead of the first values it saw
+- [x] With the window unfocused, the plot stopped drawing, so changes from MCP, hotkeys, game rules or the tray did not show; it now draws for a moment after each change and still pauses otherwise
+- No unit test covers the DPI factor: it depends on the connected mice; it was checked on the running app
+
 ## MCP (inside the running app, not headless)
 - [x] HTTP MCP server on 127.0.0.1 hosted by the GUI process; every change shows in the window
 - [x] Requests with a foreign `Origin` are refused (checked: 403); on/off switch and port in the Driver sheet

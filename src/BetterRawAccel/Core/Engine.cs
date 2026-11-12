@@ -152,6 +152,33 @@ namespace BetterRawAccel.Core
         /// <summary>The profile your mouse uses in the driver right now.</summary>
         public string InUse => InUseIn(Active);
 
+        /// <summary>
+        /// The DPI normalisation the driver applies to the mouse that runs a profile: with a device DPI set, the
+        /// driver measures speed in inches per second and scales the output by 1000 / DPI (rawaccel.hpp, modify()).
+        /// A mouse given the profile on purpose wins; if no connected mouse runs it, the default device settings apply.
+        /// </summary>
+        public static (double Factor, int Dpi) DpiNormFor(DriverConfig cfg, string profile)
+        {
+            int dpi = cfg.defaultDeviceConfig.dpi;
+            try
+            {
+                var m = MouseProfiles(cfg).Where(x => x.Profile == profile).OrderByDescending(x => x.Chosen).FirstOrDefault();
+                if (m.Id != null)
+                {
+                    var own = cfg.devices.Find(d => d.id == m.Id);
+                    if (own != null) dpi = own.config.dpi;
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error("dpi normalisation", e);
+            }
+            return dpi > 0 ? (1000.0 / dpi, dpi) : (1.0, 0);
+        }
+
+        /// <summary>DPI normalisation for the profile being edited, as the edited settings would apply it.</summary>
+        public (double Factor, int Dpi) PlotNorm() => DpiNormFor(Edit, Current.name);
+
         /// <summary>Name of the mouse that runs the in-use profile, for display.</summary>
         public string InUseMouse()
         {
@@ -717,6 +744,10 @@ namespace BetterRawAccel.Core
             st["profiles"] = new JArray(Edit.profiles.Select(x => x.name));
             st["driverProfiles"] = new JArray(Active.profiles.Select(x => x.name));
             st["inUse"] = InUse;
+            var norm = PlotNorm();
+            st["dpiNorm"] = norm.Factor;
+            st["deviceDpi"] = norm.Dpi;
+            st["speedUnit"] = norm.Dpi > 0 ? "in/s" : "c/ms";
             st["startNote"] = StartNote;
             st["driverProfile"] = twin == null ? null : ToDto(twin);
             st["driverCurve"] = twin == null ? null : Curve(twin, CurvePoints, MaxSpeed);

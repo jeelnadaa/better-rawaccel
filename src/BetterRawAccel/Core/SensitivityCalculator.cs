@@ -80,7 +80,10 @@ namespace BetterRawAccel.Core
             double baseCm = Cm360(dpi, gameSens, yaw);
             double baseIn = In360(dpi, gameSens, yaw);
 
-            double profSens = p != null && p.outputDPI > 0 ? p.outputDPI / 1000.0 : 1.0;
+            // Evaluate() already includes the profile's own sensitivity (it runs the driver's modifier), so it must not be
+            // multiplied in again. What it does not include is the device DPI normalisation the driver adds on top.
+            double norm = engine != null && p != null ? engine.PlotNorm().Factor : 1.0;
+            double profSens = (p != null && p.outputDPI > 0 ? p.outputDPI / 1000.0 : 1.0) * norm;
 
             // Sample curve to find min, max and current effective multiplier
             double evalSpeed = speed.HasValue && speed.Value >= 0 ? speed.Value : 0;
@@ -92,7 +95,7 @@ namespace BetterRawAccel.Core
             {
                 try
                 {
-                    currentMult = Math.Max(0.0001, engine.Evaluate(p, evalSpeed > 0 ? evalSpeed : 0.001, false) * profSens);
+                    currentMult = Math.Max(0.0001, engine.Evaluate(p, evalSpeed > 0 ? evalSpeed : 0.001, false) * norm);
                 }
                 catch
                 {
@@ -106,7 +109,7 @@ namespace BetterRawAccel.Core
                     double spd = Math.Max(0.001, maxSpd * i / 49.0);
                     try
                     {
-                        double m = engine.Evaluate(p, spd, false) * profSens;
+                        double m = engine.Evaluate(p, spd, false) * norm;
                         if (m < minMult) minMult = m;
                         if (m > maxMult) maxMult = m;
                     }
@@ -138,6 +141,7 @@ namespace BetterRawAccel.Core
                 ["yaw"] = Math.Round(yaw, 6),
                 ["baseCm360"] = Math.Round(baseCm, 2),
                 ["baseIn360"] = Math.Round(baseIn, 2),
+                ["dpiNormalisation"] = Math.Round(norm, 4),
                 ["evalSpeed"] = Math.Round(evalSpeed, 3),
                 ["currentMultiplier"] = Math.Round(currentMult, 4),
                 ["currentCm360"] = Math.Round(currentCm, 2),

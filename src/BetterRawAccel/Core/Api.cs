@@ -208,7 +208,17 @@ namespace BetterRawAccel.Core
                 {
                     double speed = (double?)a["speed"] ?? throw new InvalidOperationException("\"speed\" is required");
                     double s = engine.Evaluate(Source(a), speed, ((string)a["axis"] ?? "x").ToLowerInvariant() == "y");
-                    return new JObject { ["speed"] = speed, ["sensitivity"] = Math.Round(s, 5), ["outputSpeed"] = Math.Round(s * speed, 5) };
+                    var norm = engine.PlotNorm();
+                    return new JObject
+                    {
+                        ["speed"] = speed,
+                        ["speedUnit"] = norm.Dpi > 0 ? "inches/s" : "counts/ms",
+                        ["sensitivity"] = Math.Round(s, 5),
+                        ["outputSpeed"] = Math.Round(s * speed, 5),
+                        // With a device DPI set, the driver scales output by 1000 / DPI on top of the curve.
+                        ["dpiNormalisation"] = Math.Round(norm.Factor, 5),
+                        ["effectiveMultiplier"] = Math.Round(s * norm.Factor, 5),
+                    };
                 });
 
             Add("apply",

@@ -81,7 +81,13 @@ const TIPS = {
 };
 
 // ---------- state ----------
-let S = null;                 // last state from the host (merged)
+let S = null;
+// Frame scheduling state; declared first because start-up code (setTheme) already schedules frames.
+let isAppActive = true, animRunning = false, kickUntil = 0;
+// With a device DPI set, Raw Accel measures speed in inches per second instead of counts per millisecond.
+const speedUnit = () => (S && S.speedUnit) || "c/ms";
+const speedUnitLong = () => speedUnit() === "in/s" ? "inches/s" : "counts/ms";
+function paintSpeedUnits() { document.querySelectorAll("[data-su]").forEach(e => { if (e.textContent !== speedUnit()) e.textContent = speedUnit(); }); }                 // last state from the host (merged)
 let META = null, MODES = [], MODE = {};
 let axis = "x";
 const sticky = { x: false, y: false };   // "classic" stays selected even when its exponent is 2
@@ -125,6 +131,7 @@ function applyState(st) {
   if (full) hasDriver = !!S.driverCurve && fillCurve(inDriver, S.driverCurve.x);
   if (S.profile.whole && axis === "y") axis = "x";
   render(full);
+  kick();
 }
 
 // ---------- mode tiles ----------
@@ -189,7 +196,7 @@ function numberRow(d, get, set, index) {
   const row = document.createElement("div"); row.className = "prm";
   row.style.animationDelay = (index * 45) + "ms";
   row.style.setProperty("--d", clamp((d.def - min) / (max - min), 0, 1));
-  row.innerHTML = `<div class="prm-h"><span class="prm-l" data-tip="label">${esc(d.label)}</span>${d.unit ? `<span class="prm-u">${esc(d.unit)}</span>` : ""}${d.hint ? `<span class="hint">${esc(d.hint)}</span>` : ""}
+  row.innerHTML = `<div class="prm-h"><span class="prm-l" data-tip="label">${esc(d.label)}</span>${d.unit ? `<span class="prm-u"${d.unit === "c/ms" ? " data-su" : ""}>${esc(d.unit === "c/ms" ? speedUnit() : d.unit)}</span>` : ""}${d.hint ? `<span class="hint">${esc(d.hint)}</span>` : ""}
       <input class="prm-v" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" aria-label="${esc(d.label)}" data-tip="value"></div>
     <div class="scale" tabindex="0" role="slider" aria-label="${esc(d.label)} ruler" aria-valuemin="${min}" aria-valuemax="${max}" data-tip="ruler">${TICKS}<div class="def"></div><div class="fill"></div><div class="needle"></div></div>
     <div class="scale-l"><span>${min}</span><span>${max}</span></div>`;
@@ -336,7 +343,7 @@ let paramRows = [], paramKey = "", staticRows = [];
 function renderParams() {
   const a = args(), id = curMode(), m = MODE[id];
   const defs = m.params.map(k => META.args[k]).filter(d => !d.when || Object.keys(d.when).every(f => d.when[f].includes(a[f])));
-  const key = axis + "|" + id + "|" + defs.map(d => d.field + d.label).join(",");
+  const key = axis + "|" + id + "|" + speedUnit() + "|" + defs.map(d => d.field + d.label).join(",");
   if (key !== paramKey) {
     paramKey = key; paramsEl.innerHTML = ""; paramRows = [];
     const ax = axis;
@@ -385,6 +392,7 @@ function render(full) {
 
   if (full) {
     $("profV").textContent = S.profile.name;
+    paintSpeedUnits();
     $("profK").textContent = S.profile.name === S.inUse ? "Profile · in use" : "Profile · editing";
     $("devV").textContent = `${S.settings.plotDpi} dpi · ${S.settings.plotPollRate} Hz`;
     $("rev").textContent = `v${S.app.version}${S.app.dev ? " dev" : ""} · driver ${S.app.driverVersion}`;
@@ -666,8 +674,7 @@ const intOf = el => { const v = parseInt(el.value, 10); return isFinite(v) ? v :
 let sensCalc = { game: "source", gameSens: 1.0, dpi: 0, loaded: false };
 // Start from the game and sensitivity saved last time (the overlay uses the same values).
 function loadSensCalc() {
-  if (sensCalc.loaded || !S || !S.settings) return;
-  sensCalc.loaded = true;
+  if (!S || !S.settings) return;
   if (S.settings.game) sensCalc.game = S.settings.game;
   if (S.settings.gameSens > 0) sensCalc.gameSens = S.settings.gameSens;
 }
@@ -679,7 +686,7 @@ function updateCm360Readout() {
   const yaws = { source: 0.022, cs2: 0.022, valorant: 0.07, overwatch: 0.0066, overwatch2: 0.0066, fortnite: 0.005555, rainbow6: 0.00572 };
   const yaw = yaws[sensCalc.game] || 0.022;
   const baseCm = (360.0 / (sensCalc.gameSens * yaw * dpi)) * 2.54;
-  const profSens = S.profile?.sens || 1.0;
+  const profSens = (S.profile?.sens || 1.0) * (S.dpiNorm || 1);   // device DPI normalisation scales output too
   const effCm = baseCm / profSens;
   el.textContent = isFinite(effCm) && effCm > 0 ? `${effCm.toFixed(1)} cm` : "calc";
 }
@@ -718,7 +725,7 @@ if (cm360Btn) {
               <small class="hint">${res.baseIn360} in · unaccelerated</small>
             </div>
             <div class="sens-card">
-              <div class="k">At current speed (${res.evalSpeed} c/ms)</div>
+              <div class="k">At current speed (${res.evalSpeed} ${speedUnit()})</div>
               <div class="v">${res.currentCm360} <small>cm</small></div>
               <small class="hint">${res.currentMultiplier}× multiplier</small>
             </div>
@@ -956,6 +963,7 @@ const themeVars = id => {
 const swatch = id => { const v = themeVars(id); return `<span class="sw" style="background:${v.sheet};border-color:${v.ink};--c:${v.pen}"></span>`; };
 let C = null, Cfrom = null, Cto = null, themeT = 1, rethemeTimer = 0;
 function setTheme(id, animate, persist) {
+  kick();
   if (!THEMES.some(t => t.id === id)) id = "paper";
   root.dataset.theme = id; store.set("ra.theme", id);
   const to = readTheme();
@@ -1029,7 +1037,7 @@ let yMax = 3, ghostA = 0, yA = 0, prev = performance.now();
 
 // Plot views. The host sends sensitivity; velocity and gain are derived from it:
 // velocity = speed × sensitivity, gain = slope of velocity.
-const VIEWS = { sens: { title: "SENSITIVITY", unit: "×", dec: 2 }, vel: { title: "OUTPUT SPEED", unit: "counts/ms", dec: 1 }, gain: { title: "GAIN", unit: "×", dec: 2 } };
+const VIEWS = { sens: { title: "SENSITIVITY", unit: "×", dec: 2 }, vel: { title: "OUTPUT SPEED", unit: "c/ms", speed: true, dec: 1 }, gain: { title: "GAIN", unit: "×", dec: 2 } };
 let view = VIEWS[store.get("ra.view")] ? store.get("ra.view") : "sens";
 const vShown = new Float32Array(N), vShownY = new Float32Array(N), vDriver = new Float32Array(N), vTarget = new Float32Array(N), vTargetY = new Float32Array(N);
 function toView(src, dst) {
@@ -1040,6 +1048,7 @@ function toView(src, dst) {
 }
 const base = x => view === "vel" ? x : 1;      // the "no acceleration" reference in each view
 function setView(v, persist) {
+  kick();
   view = v; store.set("ra.view", v);
   $("docT").textContent = { sens: "Sensitivity curve", vel: "Velocity curve", gain: "Gain curve" }[v];
   if (persist) rpc("set_app_settings", { plotView: v }).catch(fail);
@@ -1055,24 +1064,22 @@ function tag(text, x, y, align) {
   g.fillStyle = col(C.sheet); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(text, Math.round(rx) + 5, Math.round(ry) + h / 2 + .5);
 }
 
-let isAppActive = true, animRunning = false;
 function requestFrame() {
   if (!animRunning) {
     animRunning = true;
     requestAnimationFrame(frame);
   }
 }
+// While the window is not focused the plot is paused to save CPU in games, but a change (from MCP, a hotkey,
+// a game rule or the tray) still draws for a moment so the window shows it and the curve settles.
+function kick(ms = 1500) { kickUntil = Math.max(kickUntil, performance.now() + ms); requestFrame(); }
 function frame(now) {
-  if (!isAppActive) {
+  if (!isAppActive && performance.now() > kickUntil) {
     animRunning = false;
     return;
   }
   step(now);
-  if (isAppActive) {
-    requestAnimationFrame(frame);
-  } else {
-    animRunning = false;
-  }
+  requestAnimationFrame(frame);
 }
 document.addEventListener("visibilitychange", () => {
   isAppActive = !document.hidden;
@@ -1237,11 +1244,11 @@ function step(now) {
   for (let k = 0; k * yMaj <= yMax; k++) { const y = k * yMaj; if (Y(y) < T + 4) break; g.fillText(y.toFixed(yMaj < 0.5 ? 2 : yMaj < 1 ? 1 : yMaj >= 5 ? 0 : 1), L - 9, Y(y) + 3.5); }
   g.font = `700 10px ${UIF}`; g.fillStyle = col(C.ink); g.letterSpacing = "1.4px";
   g.textAlign = "right"; g.fillText("INPUT SPEED", L + pw - 64, bottom + 38);
-  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "left"; g.fillText("counts/ms", L + pw - 58, bottom + 38);
+  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "left"; g.fillText(speedUnitLong(), L + pw - 58, bottom + 38);
   g.save(); g.translate(16, T); g.rotate(-Math.PI / 2);
   const V = VIEWS[view];
-  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "right"; g.fillText(V.unit, 0, 0);
-  const uw = g.measureText(V.unit).width;
+  g.letterSpacing = "0px"; g.font = `400 10.5px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "right"; g.fillText(V.speed ? speedUnitLong() : V.unit, 0, 0);
+  const uw = g.measureText(V.speed ? speedUnitLong() : V.unit).width;
   g.font = `700 10px ${UIF}`; g.fillStyle = col(C.ink); g.letterSpacing = "1.4px"; g.fillText(V.title, -(uw + 7), 0);
   g.letterSpacing = "0px";
   g.restore();

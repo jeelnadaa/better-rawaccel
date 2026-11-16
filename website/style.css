@@ -525,6 +525,27 @@ button { font-family: var(--font-ui); cursor: pointer; border: none; background:
   color: var(--ink2);
 }
 
+/* ---------------- Launch Film ---------------- */
+.film-frame {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.film-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0c0d0e;
+}
+
+/* set by main.js when the 9:16 cut is the one that loaded */
+.film-frame.is-vertical {
+  max-width: min(100%, 46vh);
+}
+.film-frame.is-vertical .film-video {
+  aspect-ratio: 9 / 16;
+}
+
 /* ---------------- Interactive Aim & Acceleration Demo ---------------- */
 .demo-section {
   background: color-mix(in srgb, var(--desk) 60%, var(--bg));

@@ -36,6 +36,7 @@
       </a>
 
       <nav class="nav-links">
+        <a href="#film" class="nav-link">Film</a>
         <a href="#features" class="nav-link">Features</a>
         <a href="#demo" class="nav-link">Aim Simulator</a>
         <a href="#valorant" class="nav-link">Valorant Aim Guide</a>
@@ -138,6 +139,35 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Launch Film -->
+  <section class="section film-section" id="film">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="section-tag">Launch Film · 0:41</span>
+        <h2 class="section-title">See it before you feel it</h2>
+        <p class="section-desc">
+          Every curve in the film is the driver's own math, drawn live through accel.'s MCP server. Sound on.
+        </p>
+      </div>
+
+      <div class="app-frame film-frame reveal delay-1">
+        <div class="app-frame-head">
+          <div class="app-frame-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span>accel. // launch_film.mp4</span>
+          <span style="color:var(--accent); font-weight:700;">FIG. 1–10</span>
+        </div>
+        <video class="film-video" id="launchFilm" controls playsinline preload="metadata"
+               poster="media/accel-launch-16x9.jpg"
+               aria-label="accel. launch film, 41 seconds, music and sound effects, all text on screen">
+          <source src="media/accel-launch-9x16.mp4" type="video/mp4" media="(max-width: 640px) and (orientation: portrait)">
+          <source src="media/accel-launch-16x9.mp4" type="video/mp4">
+        </video>
       </div>
     </div>
   </section>

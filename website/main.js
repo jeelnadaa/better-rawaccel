@@ -432,3 +432,18 @@
   }
 
 })();
+
+// Launch film: portrait phones get the 9:16 cut (picked by <source media>), so match the
+// poster and frame to it. The frame follows the cut that loaded, not later rotations.
+(() => {
+  const film = document.getElementById('launchFilm');
+  if (!film) return;
+  const fit = () => {
+    const vertical = film.videoHeight > film.videoWidth ||
+      (!film.videoWidth && window.matchMedia('(max-width: 640px) and (orientation: portrait)').matches);
+    film.closest('.film-frame').classList.toggle('is-vertical', vertical);
+    if (vertical) film.poster = 'media/accel-launch-9x16.jpg';
+  };
+  fit();
+  film.addEventListener('loadedmetadata', fit);
+})();

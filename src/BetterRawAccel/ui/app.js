@@ -78,6 +78,7 @@ const TIPS = {
   cm360:   ["Sensitivity & cm/360", "Calculate cm/360, compare sensitivities across games (Source/CS2, Valorant, Overwatch 2, Apex, Fortnite, etc.), and view the effective range of your curve."],
   pin:     ["Pin reference curve", "Overlay a snapshot of the current curve or another profile on the plot to compare changes directly."],
   hist:    ["Speed histogram", "Shows where your hand moves during tracking and flicks as a distribution under the curve."],
+  test:    ["Aim test", "Runs the same drill on each profile you pick, with your game's sensitivity and field of view, then ranks them. Your mouse switches profile for each round and goes back when you close."],
 };
 
 // ---------- state ----------
@@ -532,7 +533,7 @@ function onEvent(m) {
 
 // ---------- callout tooltips ----------
 const tip = $("tip"), lead = $("lead"), PREF = { mode: "right", label: "right", value: "right", ruler: "right", write: "right", status: "right", undo: "right", revert: "right", axis: "right",
-  in: "top", sens: "top", out: "top", peak: "top", legend: "top", view: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom", profile: "bottom", device: "bottom", cm360: "bottom", pin: "bottom", hist: "bottom" };
+  in: "top", sens: "top", out: "top", peak: "top", legend: "top", view: "bottom", theme: "bottom", font: "bottom", help: "bottom", driver: "bottom", profile: "bottom", device: "bottom", cm360: "bottom", pin: "bottom", hist: "bottom", test: "bottom" };
 const TIP_NO = Object.fromEntries(Object.keys(TIPS).map((k, i) => [k, String(i + 1).padStart(2, "0")]));
 let tipEl = null, tipTimer = 0, hideTimer = 0;
 function showTip(el) {
@@ -989,6 +990,7 @@ themeBtn.onclick = () => openMenu(themeBtn, "Sheet", THEMES.map(t => ({ id: t.id
 fontBtn.onclick = () => openMenu(fontBtn, "Type", FONTS.map(f => ({ id: f.id, style: `font-family:'${f.family}', Arial, sans-serif`, html: `${f.name}<span class="x">${f.lic}</span>` })), root.dataset.font, id => setFont(id, true));
 
 addEventListener("keydown", e => {
+  if (AT.open) { benchKey(e); return; }      // the aim test owns the keyboard while it is open
   if (e.key === "Escape") { if (popOwner) { closePop(true); return; } hideTip(); }
   if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); write(); return; }
   const typing = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT";
@@ -1048,13 +1050,15 @@ function toView(src, dst) {
 }
 const base = x => view === "vel" ? x : 1;      // the "no acceleration" reference in each view
 function setView(v, persist) {
+  if (!VIEWS[v]) return;
   kick();
   view = v; store.set("ra.view", v);
   $("docT").textContent = { sens: "Sensitivity curve", vel: "Velocity curve", gain: "Gain curve" }[v];
   if (persist) rpc("set_app_settings", { plotView: v }).catch(fail);
-  $("viewSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v));
+  $("viewSeg").querySelectorAll("button[data-v]").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v));
 }
-$("viewSeg").querySelectorAll("button").forEach(b => b.onclick = () => setView(b.dataset.v, true));
+// Only the view buttons: Pin, Hist and PNG share this strip and keep their own handlers.
+$("viewSeg").querySelectorAll("button[data-v]").forEach(b => b.onclick = () => setView(b.dataset.v, true));
 setView(view, false);
 function tag(text, x, y, align) {
   g.font = `500 10.5px ${MONO}`;
@@ -1078,8 +1082,9 @@ function frame(now) {
     animRunning = false;
     return;
   }
-  step(now);
+  // Schedule the next frame first: one frame that throws must not stop the plot for good.
   requestAnimationFrame(frame);
+  try { step(now); } catch (e) { console.error(e); }
 }
 document.addEventListener("visibilitychange", () => {
   isAppActive = !document.hidden;
@@ -1365,6 +1370,355 @@ cv.addEventListener("contextmenu", e => {
     }
   }
 });
+
+// ---------- aim test: the same drill on each profile ----------
+// Each chosen profile is put in the driver in turn (use_profile) and the same drill runs under pointer lock.
+// Unadjusted movement gives the counts after Raw Accel, the way a game reads them, so counts become degrees
+// with the game's yaw and in-game sensitivity, and targets are drawn through the game's field of view.
+const AIM_GAMES = {
+  valorant:   { name: "Valorant",            yaw: 0.07,     fov: 103 },
+  source:     { name: "CS2 / Source / Apex", yaw: 0.022,    fov: 106.26 },
+  overwatch2: { name: "Overwatch 2",         yaw: 0.0066,   fov: 103 },
+  fortnite:   { name: "Fortnite",            yaw: 0.005555, fov: 106 },
+  rainbow6:   { name: "Rainbow Six Siege",   yaw: 0.00572,  fov: 104 },
+};
+const DRILLS = {
+  flick: { name: "Flick", count: 15, min: 12, max: 45, r: 1.6, life: 2600,
+           note: "15 targets, 12–45° away. Click each one as fast as you can. A flick that passes the target and comes back counts as an overshoot." },
+  micro: { name: "Micro", count: 20, min: 2, max: 7, r: 0.6, life: 2200,
+           note: "20 small targets, 2–7° away. Tests the slow end of the curve, where headshots get corrected." },
+  track: { name: "Track", secs: 15, r: 1.3,
+           note: "15 s on a strafing target that changes direction. Keep the crosshair on it; time on target is counted." },
+};
+const AT = { open: false, phase: "setup", pick: null, drill: store.get("ra.test.drill") || "flick", blind: store.get("ra.test.blind") === "1",
+             queue: [], idx: 0, results: [], orig: null, chosen: false, cancel: false, raw: true, skip: 0, yaw: 0, pitch: 0, run: null, fx: [], msg: "" };
+if (!DRILLS[AT.drill]) AT.drill = "flick";
+const bench = $("bench"), bcv = $("bcv"), bg = bcv.getContext("2d"), bnPanel = $("bnPanel"), bnStage = $("bnStage"), testBtn = $("testBtn");
+let BW = 0, BH = 0, BDPR = 1;
+
+const aimGame = () => { const id = S.settings.game === "cs2" || S.settings.game === "csgo" ? "source" : S.settings.game; return AIM_GAMES[id] ? id : "valorant"; };
+const aimSens = () => S.settings.gameSens > 0 ? S.settings.gameSens : 1;
+const aimFov = id => { const v = parseFloat(store.get("ra.test.fov." + id)); return v >= 30 && v <= 150 ? v : AIM_GAMES[id].fov; };
+const degPerCount = () => AIM_GAMES[aimGame()].yaw * aimSens();
+const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const wrap = a => ((a % 360) + 540) % 360 - 180;
+const D2R = Math.PI / 180;
+const vdir = (y, p) => [Math.cos(p * D2R) * Math.sin(y * D2R), Math.sin(p * D2R), Math.cos(p * D2R) * Math.cos(y * D2R)];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const angle = (y1, p1, y2, p2) => Math.acos(clamp(dot(vdir(y1, p1), vdir(y2, p2)), -1, 1)) / D2R;
+
+// ----- open / close -----
+testBtn.onclick = () => { closePop(); hideTip(); openBench(); };
+$("bnClose").onclick = () => closeBench();
+function openBench() {
+  if (!S || AT.open) return;
+  AT.open = true; AT.phase = "setup"; AT.orig = S.inUse; AT.chosen = false; AT.msg = "";
+  if (!AT.pick) AT.pick = new Set(S.inUse ? [S.inUse] : []);
+  for (const p of [...AT.pick]) if (!S.profiles.includes(p)) AT.pick.delete(p);
+  bench.hidden = false; testBtn.setAttribute("aria-expanded", "true");
+  benchFit(); renderBench(); requestAnimationFrame(benchFrame);
+}
+async function closeBench() {
+  if (!AT.open) return;
+  if (document.pointerLockElement === bcv) document.exitPointerLock();
+  AT.cancel = AT.phase === "switch";
+  AT.open = false; AT.run = null; bench.hidden = true; testBtn.setAttribute("aria-expanded", "false"); testBtn.focus({ preventScroll: true });
+  await restoreOrig();
+}
+async function restoreOrig() {
+  if (AT.chosen || !AT.orig || S.inUse === AT.orig || !S.profiles.includes(AT.orig)) return;
+  const name = AT.orig;
+  try { await rpc("use_profile", { profile: name }); blink("tx"); notice(`Back to “${name}”, the profile you had before the test.`, false, "DRIVER"); } catch (e) { fail(e); }
+}
+function benchKey(e) {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    if (AT.phase === "ready") { AT.phase = "setup"; AT.msg = ""; restoreOrig(); renderBench(); }
+    else if (AT.phase !== "switch") closeBench();
+  } else if (e.key === "Enter" && !e.ctrlKey && e.target.tagName !== "SELECT" && e.target.tagName !== "BUTTON") {
+    if (AT.phase === "setup") { e.preventDefault(); startTest(); }
+  }
+}
+
+// ----- panels -----
+function renderBench() {
+  bnStage.classList.toggle("run", AT.phase === "run");
+  bnPanel.hidden = AT.phase === "run";
+  $("bnProg").innerHTML = progText();
+  if (AT.phase === "setup") setupPanel();
+  else if (AT.phase === "switch" || AT.phase === "ready") readyPanel();
+  else if (AT.phase === "results") resultsPanel();
+}
+function progText() {
+  if (AT.phase === "setup" || AT.phase === "results" || !AT.queue.length) return "";
+  const d = DRILLS[AT.drill], r = AT.run, q = `${esc(labelOf(AT.idx))} · ${AT.idx + 1}/${AT.queue.length}`;
+  if (AT.phase !== "run" || !r) return q;
+  if (d.secs) return `${q} · <b>${Math.max(0, d.secs - (performance.now() - r.t0) / 1000).toFixed(1)} s</b>`;
+  return `${q} · <b>${String(Math.min(r.n + 1, d.count)).padStart(2, "0")}</b> / ${d.count}`;
+}
+const labelOf = i => AT.blind ? "Profile " + "ABCD"[i] : AT.queue[i];
+
+function setupPanel() {
+  const gid = aimGame(), G = AIM_GAMES[gid], dpc = degPerCount();
+  bnPanel.innerHTML = `
+    <div class="grp"><span class="k">Profiles to compare<small>up to 4</small></span>
+      <div class="bpick">${S.profiles.map((p, i) => `<label class="ck"><input type="checkbox" data-pp="${i}" ${AT.pick.has(p) ? "checked" : ""}><span>${esc(p)}</span>${p === S.inUse ? `<b class="use">in use</b>` : ""}</label>`).join("")}</div>
+      ${S.profiles.length < 2 ? `<p style="margin-top:7px">You have one profile. Duplicate it under Profile and change the copy to have something to compare.</p>` : ""}
+    </div>
+    <div class="grp"><span class="k">Drill</span>
+      <div class="row"><div class="seg" id="bnDrill">${Object.entries(DRILLS).map(([id, d]) => `<button data-d="${id}" aria-pressed="${id === AT.drill}">${d.name}</button>`).join("")}</div></div>
+      <p>${esc(DRILLS[AT.drill].note)}</p>
+    </div>
+    <div class="grp"><span class="k">Game feel<small>${(1 / dpc).toFixed(0)} counts per degree</small></span>
+      <div class="row"><select class="fi w" id="bnGame" aria-label="Game">${Object.entries(AIM_GAMES).map(([id, g]) => `<option value="${id}" ${id === gid ? "selected" : ""}>${esc(g.name)}</option>`).join("")}</select>
+        <small>sens</small><input class="fi n" id="bnSens" type="number" step="0.01" min="0.001" value="${aimSens()}" aria-label="In-game sensitivity">
+        <small>FOV</small><input class="fi n" id="bnFov" type="number" step="1" min="30" max="150" value="${aimFov(gid)}" aria-label="Horizontal field of view in degrees"></div>
+      <p>Your mouse counts become degrees exactly as in ${esc(G.name)} at this sensitivity, so a flick here travels as far as in the game. Shared with the cm/360 calculator.</p>
+    </div>
+    <div class="grp">
+      <div class="row"><label class="ck"><input type="checkbox" id="bnBlind" ${AT.blind ? "checked" : ""}>Blind: shuffle and hide names until the results</label></div>
+      <div class="row" style="margin-top:8px"><button class="write" id="bnStart" ${AT.pick.size ? "" : "disabled"}><span>${AT.pick.size > 1 ? `Test ${AT.pick.size} profiles` : AT.pick.size ? "Test this profile" : "Pick a profile"}</span><kbd>Enter</kbd><span class="bar"></span></button></div>
+      <p style="margin-top:7px">Each round switches your mouse to that profile in the driver. Closing the test puts “${esc(AT.orig || "")}” back unless you choose another.</p>
+    </div>`;
+  bnPanel.querySelectorAll("[data-pp]").forEach(el => el.onchange = () => {
+    const p = S.profiles[+el.dataset.pp];
+    if (el.checked) { if (AT.pick.size >= 4) { el.checked = false; notice("Up to four profiles per test.", true); return; } AT.pick.add(p); } else AT.pick.delete(p);
+    renderBench();
+  });
+  bnPanel.querySelectorAll("#bnDrill button").forEach(b => b.onclick = () => { AT.drill = b.dataset.d; store.set("ra.test.drill", AT.drill); renderBench(); });
+  $("bnBlind").onchange = e => { AT.blind = e.target.checked; store.set("ra.test.blind", AT.blind ? "1" : "0"); };
+  const saveGame = () => {
+    const game = $("bnGame").value, sens = parseFloat($("bnSens").value);
+    S.settings.game = game; if (sens > 0) S.settings.gameSens = sens;
+    rpc("set_app_settings", { game, gameSens: aimSens() }).catch(fail);
+    updateCm360Readout(); renderBench();
+  };
+  $("bnGame").onchange = saveGame; $("bnSens").onchange = saveGame;
+  $("bnFov").onchange = () => { const v = parseFloat($("bnFov").value); if (v >= 30 && v <= 150) store.set("ra.test.fov." + aimGame(), String(v)); renderBench(); };
+  $("bnStart").onclick = startTest;
+}
+function readyPanel() {
+  const wait = AT.phase === "switch";
+  bnPanel.innerHTML = `<div class="ready ${wait ? "wait" : ""}">
+      <span class="k">${wait ? "Switching your mouse to" : `Round ${AT.idx + 1} of ${AT.queue.length} · ${esc(DRILLS[AT.drill].name)}`}</span>
+      <div class="big">${esc(labelOf(AT.idx))}</div>
+      <p>${wait ? "The driver waits a second before it uses new settings." : "Click anywhere on the sheet to start. The cursor is captured until the round ends."}</p>
+      ${AT.msg ? `<p><b>${esc(AT.msg)}</b></p>` : ""}
+      ${wait ? "" : `<p><kbd>Esc</kbd> during a round restarts it · <kbd>Esc</kbd> here stops the test</p>`}
+    </div>`;
+}
+function resultsPanel() {
+  const rs = AT.results, click = !DRILLS[AT.drill].secs;
+  // the best value in a column, unless every profile shares it (then marking it says nothing)
+  const best = (k, low) => { const v = rs.map(r => r[k]).filter(isFinite); if (v.length < 2 || Math.min(...v) === Math.max(...v)) return NaN; return low ? Math.min(...v) : Math.max(...v); };
+  const top = Math.max(...rs.map(r => r.raw)), win = rs.find(r => r.raw === top);
+  for (const r of rs) r.score = top > 0 ? Math.round(r.raw / top * 100) : 0;
+  const cols = click
+    ? [["Median time", "med", true, v => `${Math.round(v)} ms`], ["Hit rate", "acc", false, v => `${Math.round(v * 100)}%`], ["Overshoot", "over", true, v => `${Math.round(v * 100)}%`], ["Score", "score", false, v => v]]
+    : [["On target", "on", false, v => `${(v * 100).toFixed(1)}%`], ["Mean error", "err", true, v => `${v.toFixed(2)}°`], ["Score", "score", false, v => v]];
+  const bests = cols.map(c => best(c[1], c[2]));
+  const name = r => AT.blind ? `<b class="lb">${esc(r.label.slice(-1))}</b>${esc(r.name)}` : esc(r.name);
+  bnPanel.innerHTML = `
+    <div class="grp"><span class="k">Results · ${esc(DRILLS[AT.drill].name)}<small>${esc(AIM_GAMES[aimGame()].name)} · sens ${aimSens()}</small></span>
+      <div class="verdict"><span class="v">${esc(win.name)}</span><small>${rs.length > 1 ? "aimed best in this run" : "your baseline: test it against another profile next"}</small></div>
+      <table class="sens-table"><thead><tr><th>Profile</th>${cols.map(c => `<th class="num">${c[0]}</th>`).join("")}</tr></thead>
+        <tbody>${rs.map(r => `<tr class="${r === win && rs.length > 1 ? "win" : ""}"><td>${name(r)}</td>${cols.map((c, i) => `<td class="num ${r[c[1]] === bests[i] ? "best" : ""}">${isFinite(r[c[1]]) ? c[3](r[c[1]]) : "–"}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      <p style="margin-top:8px">${click ? "Score weighs speed, hit rate and overshoot; the best profile is 100." : "Score is time on target; the best profile is 100."} One run is noisy: run it two or three times before you settle, ideally blind.</p>
+    </div>
+    <div class="grp"><div class="row">
+      <button class="bt" id="bnUse" ${win.name === S.inUse && AT.chosen ? "disabled" : ""}>Use “${esc(win.name)}”</button>
+      <button class="bt q" id="bnAgain">Run again</button><button class="bt q" id="bnSetup">Setup</button>
+      <span class="sp"></span><button class="bt q" id="bnDone">${AT.chosen ? "Done" : `Keep “${esc(AT.orig || "")}”`}</button></div></div>`;
+  $("bnUse").onclick = async () => {
+    try { await rpc("use_profile", { profile: win.name }); AT.chosen = true; blink("tx"); notice(`Your mice now use “${win.name}”.`, false, "DRIVER"); renderBench(); } catch (e) { fail(e); }
+  };
+  $("bnAgain").onclick = () => startTest();
+  $("bnSetup").onclick = () => { AT.phase = "setup"; restoreOrig(); renderBench(); };
+  $("bnDone").onclick = () => closeBench();
+}
+
+// ----- flow -----
+function startTest() {
+  const picks = S.profiles.filter(p => AT.pick.has(p));
+  if (!picks.length) return;
+  if (AT.blind) for (let i = picks.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [picks[i], picks[j]] = [picks[j], picks[i]]; }
+  AT.queue = picks; AT.idx = 0; AT.results = []; AT.chosen = false;
+  switchTo();
+}
+async function switchTo() {
+  AT.phase = "switch"; AT.msg = ""; AT.cancel = false; renderBench();
+  const name = AT.queue[AT.idx];
+  try {
+    if (S.inUse !== name) { await rpc("use_profile", { profile: name }); blink("tx"); }
+  } catch (e) { fail(e); AT.phase = "setup"; renderBench(); return; }
+  if (!AT.open || AT.cancel) return;
+  AT.phase = "ready"; AT.yaw = 0; AT.pitch = 0; renderBench();
+}
+function lockCursor() {
+  AT.raw = true; AT.skip = 2;
+  let p = null;
+  try { p = bcv.requestPointerLock({ unadjustedMovement: true }); } catch (e) { p = null; }
+  if (p && p.catch) p.catch(() => { AT.raw = false; try { const q = bcv.requestPointerLock(); if (q && q.catch) q.catch(() => {}); } catch (e) {} });
+  else if (!p) { AT.raw = false; try { bcv.requestPointerLock(); } catch (e) {} }
+}
+bcv.addEventListener("mousedown", e => {
+  if (!AT.open || e.button !== 0) return;
+  if (AT.phase === "ready" && document.pointerLockElement !== bcv) { e.preventDefault(); lockCursor(); return; }
+  if (AT.phase === "run" && document.pointerLockElement === bcv) shoot();
+});
+bnPanel.addEventListener("mousedown", e => { if (AT.phase === "ready" && e.button === 0) { e.preventDefault(); lockCursor(); } });
+document.addEventListener("pointerlockchange", () => {
+  if (!AT.open) return;
+  if (document.pointerLockElement === bcv) { if (AT.phase === "ready") beginRound(); }
+  else if (AT.phase === "run") { AT.run = null; AT.phase = "ready"; AT.msg = "Round stopped. Click to run it again."; renderBench(); }
+});
+document.addEventListener("pointerlockerror", () => { if (AT.open && AT.phase === "ready") { AT.msg = "The cursor could not be captured. Click again."; renderBench(); } });
+document.addEventListener("mousemove", e => {
+  if (!AT.open || document.pointerLockElement !== bcv || AT.phase !== "run") return;
+  if (AT.skip > 0 && (Math.abs(e.movementX) > 200 || Math.abs(e.movementY) > 200)) { AT.skip--; return; }   // Chromium can report one bogus jump right after locking
+  AT.skip = 0;
+  aimBy(e.movementX, e.movementY);
+});
+function aimBy(mx, my) {
+  const k = degPerCount();
+  AT.yaw = wrap(AT.yaw + mx * k); AT.pitch = clamp(AT.pitch - my * k, -85, 85);
+  const r = AT.run; if (!r || !r.t || DRILLS[AT.drill].secs) return;
+  // overshoot: progress along the line from where the flick started to the target, past its far edge
+  const t = r.t, c = Math.cos(t.p * D2R), ux = wrap(t.y - t.sy) * c, uy = t.p - t.sp, L = Math.hypot(ux, uy) || 1;
+  const s = (wrap(AT.yaw - t.sy) * c * ux + (AT.pitch - t.sp) * uy) / L;
+  if (s > L + t.r * 1.2) t.over = true;
+}
+
+function beginRound() {
+  const d = DRILLS[AT.drill];
+  AT.phase = "run"; AT.msg = ""; AT.fx = [];
+  AT.run = d.secs ? { t0: performance.now(), on: 0, err: 0, ms: 0, last: performance.now(), y0: AT.yaw, p0: AT.pitch, t: null }
+                  : { t0: performance.now(), n: 0, hits: 0, misses: 0, lost: 0, times: [], overs: 0, t: null };
+  if (!d.secs) spawn();
+  renderBench();
+}
+function spawn() {
+  const d = DRILLS[AT.drill], dist = d.min + Math.random() * (d.max - d.min), a = Math.random() * Math.PI * 2;
+  const dy = Math.cos(a) * dist; let dp = Math.sin(a) * dist * 0.45;          // spread wider than tall, like a map
+  if (Math.abs(AT.pitch + dp) > 25) dp = -dp;
+  AT.run.t = { y: wrap(AT.yaw + dy / Math.max(.3, Math.cos(AT.pitch * D2R))), p: clamp(AT.pitch + dp, -30, 30), r: d.r, sy: AT.yaw, sp: AT.pitch, born: performance.now(), over: false };
+}
+function shoot() {
+  const r = AT.run; if (!r || !r.t) return;
+  const t = r.t, now = performance.now();
+  if (angle(AT.yaw, AT.pitch, t.y, t.p) <= t.r) {
+    r.hits++; r.times.push(now - t.born); if (t.over) r.overs++;
+    AT.fx.push({ y: t.y, p: t.p, r: t.r, at: now, hit: true });
+    nextTarget();
+  } else { r.misses++; AT.fx.push({ y: AT.yaw, p: AT.pitch, r: 0.25, at: now, hit: false }); }
+}
+function nextTarget() {
+  const r = AT.run; r.n++;
+  if (r.n >= DRILLS[AT.drill].count) endRound(); else spawn();
+}
+function endRound() {
+  const d = DRILLS[AT.drill], r = AT.run, name = AT.queue[AT.idx];
+  const res = { name, label: "Profile " + "ABCD"[AT.idx] };
+  if (d.secs) { res.on = r.ms ? r.on / r.ms : 0; res.err = r.ms ? r.err / r.ms : NaN; res.raw = res.on; }
+  else {
+    const clicks = r.hits + r.misses;
+    res.med = median(r.times); res.acc = clicks ? r.hits / clicks : 0; res.over = r.hits ? r.overs / r.hits : 0;
+    res.raw = r.hits ? (r.hits / d.count) * res.acc * (1 - 0.3 * res.over) / (res.med / 1000) : 0;
+  }
+  AT.results.push(res); AT.run = null;
+  if (++AT.idx < AT.queue.length) { AT.phase = "switch"; if (document.pointerLockElement === bcv) document.exitPointerLock(); switchTo(); }
+  else { AT.phase = "results"; if (document.pointerLockElement === bcv) document.exitPointerLock(); renderBench(); }
+}
+
+// ----- drawing: an angular grid seen through the game's lens -----
+function benchFit() {
+  const r = bcv.getBoundingClientRect(); BDPR = devicePixelRatio || 1; BW = r.width; BH = r.height;
+  bcv.width = Math.round(BW * BDPR); bcv.height = Math.round(BH * BDPR);
+}
+new ResizeObserver(() => { if (AT.open) benchFit(); }).observe(bcv);
+function benchFrame(now) {
+  if (!AT.open) return;
+  requestAnimationFrame(benchFrame);
+  const r = AT.run, d = DRILLS[AT.drill];
+  if (AT.phase === "run" && r) {
+    if (d.secs) {
+      const el = (now - r.t0) / 1000, dt = Math.min(50, Math.max(0, now - r.last)); r.last = now;
+      // a strafing target: sways at different rates, so it changes direction often and unevenly
+      const ty = wrap(r.y0 + 16 * Math.sin(el * 1.15) + 7 * Math.sin(el * 2.9 + 1.3) + 3 * Math.sin(el * 5.1)), tp = clamp(r.p0 + 3.5 * Math.sin(el * 1.6 + .4), -60, 60);
+      r.t = { y: ty, p: tp, r: d.r };
+      if (el > 0.4) { const e = angle(AT.yaw, AT.pitch, ty, tp); r.ms += dt; r.err += e * dt; if (e <= d.r) r.on += dt; }
+      if (el >= d.secs) endRound();
+    } else if (r.t && now - r.t.born > d.life) { r.lost++; r.misses++; AT.fx.push({ y: r.t.y, p: r.t.p, r: r.t.r, at: now, hit: false }); nextTarget(); }
+    if (AT.phase === "run") $("bnProg").innerHTML = progText();
+  }
+  drawBench(now);
+}
+function drawBench(now) {
+  if (!C || BW < 10) return;
+  const g = bg; g.setTransform(BDPR, 0, 0, BDPR, 0, 0); g.clearRect(0, 0, BW, BH);
+  const fov = aimFov(aimGame()), f = (BW / 2) / Math.tan(fov / 2 * D2R), cx = BW / 2, cy = BH / 2;
+  const yr = AT.yaw * D2R, pr = AT.pitch * D2R;
+  const fwd = vdir(AT.yaw, AT.pitch), right = [Math.cos(yr), 0, -Math.sin(yr)], up = [-Math.sin(pr) * Math.sin(yr), Math.cos(pr), -Math.sin(pr) * Math.cos(yr)];
+  const proj = (y, p) => { const v = vdir(y, p), z = dot(v, fwd); if (z < 0.08) return null; return [cx + dot(v, right) / z * f, cy - dot(v, up) / z * f, z]; };
+  const line = pts => { let on = false; for (const q of pts) { if (!q) { on = false; continue; } on ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); on = true; } };
+  const span = fov / 2 + 25;
+  // grid: meridians and parallels every 5°, majors every 15°
+  for (const major of [false, true]) {
+    g.lineWidth = 1; g.strokeStyle = col(C.grid, major ? C.a2[0] : C.a1[0]); g.beginPath();
+    for (let y = Math.ceil((AT.yaw - span) / 5) * 5; y <= AT.yaw + span; y += 5) {
+      if ((Math.round(y) % 15 === 0) !== major) continue;
+      const pts = []; for (let p = -80; p <= 80; p += 4) pts.push(proj(y, p)); line(pts);
+    }
+    for (let p = -75; p <= 75; p += 5) {
+      if ((p % 15 === 0) !== major || p === 0) continue;
+      const pts = []; for (let y = AT.yaw - span; y <= AT.yaw + span; y += 2) pts.push(proj(y, p)); line(pts);
+    }
+    g.stroke();
+  }
+  // horizon, with degree marks along it
+  g.strokeStyle = col(C.ink, .45); g.beginPath(); { const pts = []; for (let y = AT.yaw - span; y <= AT.yaw + span; y += 2) pts.push(proj(y, 0)); line(pts); } g.stroke();
+  g.font = `400 10px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "center"; g.textBaseline = "top";
+  for (let y = Math.ceil((AT.yaw - span) / 15) * 15; y <= AT.yaw + span; y += 15) { const q = proj(y, 0); if (q) g.fillText(`${((Math.round(y) % 360) + 360) % 360}°`, q[0], q[1] + 4); }
+  // effects: a ring opens where a target was hit, a cross marks a miss
+  AT.fx = AT.fx.filter(x => now - x.at < 420);
+  for (const x of AT.fx) {
+    const q = proj(x.y, x.p); if (!q) continue;
+    const k = clamp((now - x.at) / 420, 0, 1), rp = Math.max(3, f * Math.tan(x.r * D2R) / q[2]);
+    g.globalAlpha = 1 - k; g.lineWidth = 1.5;
+    if (x.hit) { g.strokeStyle = col(C.pen); g.beginPath(); g.arc(q[0], q[1], rp * (1 + k * 1.6), 0, Math.PI * 2); g.stroke(); }
+    else { g.strokeStyle = col(C.ink2); g.beginPath(); g.moveTo(q[0] - 4, q[1] - 4); g.lineTo(q[0] + 4, q[1] + 4); g.moveTo(q[0] + 4, q[1] - 4); g.lineTo(q[0] - 4, q[1] + 4); g.stroke(); }
+    g.globalAlpha = 1;
+  }
+  // target
+  const t = AT.run && AT.run.t;
+  if (AT.phase === "run" && t) {
+    const q = proj(t.y, t.p);
+    if (q && q[0] > -40 && q[0] < BW + 40 && q[1] > -40 && q[1] < BH + 40) {
+      const rp = Math.max(2.5, f * Math.tan(t.r * D2R) / q[2]), on = angle(AT.yaw, AT.pitch, t.y, t.p) <= t.r;
+      g.fillStyle = col(on ? C.pen : C.ink, on ? .22 : .08); g.strokeStyle = col(on ? C.pen : C.ink); g.lineWidth = 1.5;
+      g.beginPath(); g.arc(q[0], q[1], rp, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = col(C.pen); g.beginPath(); g.arc(q[0], q[1], Math.min(2.2, rp * .35), 0, Math.PI * 2); g.fill();
+      if (t.born) {   // time left, drawn as a closing arc
+        const k = 1 - clamp((now - t.born) / DRILLS[AT.drill].life, 0, 1);
+        g.strokeStyle = col(C.ink, .35); g.lineWidth = 1; g.beginPath(); g.arc(q[0], q[1], rp + 5, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); g.stroke();
+      }
+    } else {   // off screen: a pointer on the edge
+      const dy = wrap(t.y - AT.yaw), dp = t.p - AT.pitch, a = Math.atan2(-dp, dy), m = 18;
+      const s = Math.min((BW / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(a))), (BH / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(a))));
+      const ex = cx + Math.cos(a) * s, ey = cy + Math.sin(a) * s;
+      g.fillStyle = col(C.pen); g.save(); g.translate(ex, ey); g.rotate(a); g.beginPath(); g.moveTo(7, 0); g.lineTo(-5, -5); g.lineTo(-5, 5); g.closePath(); g.fill(); g.restore();
+    }
+  }
+  // crosshair: four short strokes with a gap and a centre dot
+  if (AT.phase === "run" || AT.phase === "ready") {
+    g.strokeStyle = col(C.pen); g.lineWidth = 2; g.beginPath();
+    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { g.moveTo(cx + a * 4, cy + b * 4); g.lineTo(cx + a * 10, cy + b * 10); }
+    g.stroke(); g.fillStyle = col(C.pen); g.fillRect(cx - 1, cy - 1, 2, 2);
+  }
+  // lens note, bottom left, like a drawing's scale note
+  g.font = `400 10px ${MONO}`; g.fillStyle = col(C.ink3); g.textAlign = "left"; g.textBaseline = "alphabetic";
+  g.fillText(`${AIM_GAMES[aimGame()].name.toUpperCase()} · SENS ${aimSens()} · FOV ${fov}° · ${AT.raw ? "RAW INPUT" : "WINDOWS POINTER"}`, 16, BH - 12);
+}
 
 // ---------- start ----------
 setTheme(root.dataset.theme, false, false);

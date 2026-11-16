@@ -143,3 +143,49 @@ a.lk:hover { text-decoration-color: var(--pen); }
 b.use { font: 600 9.5px var(--mono); letter-spacing: .04em; color: var(--pen); text-transform: uppercase; }
 .plist button[aria-checked="true"] b.use { color: var(--pen-on-ink); }
 .grp p b { font-weight: var(--bd-w); color: var(--ink); }
+
+/* aim test bench: covers the drawing (plot and readouts) while profiles are tried against each other */
+main { position: relative; }
+.notice { z-index: 30; }
+.bench { position: absolute; inset: 0; z-index: 20; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--sheet); animation: wipe .32s var(--ease); }
+.bench[hidden] { display: none; }
+.bench > header { display: flex; align-items: baseline; gap: 10px; padding: 9px 16px; border-bottom: 1.5px solid var(--ink); grid-template-columns: none; min-width: 0; }
+.bench > header h3 { font-size: calc(var(--lb-sz) + 1.5px); font-weight: var(--lb-w); font-stretch: var(--lb-s); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.bench > header span { font: 400 10px var(--mono); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bench > header .prog { margin-left: auto; font: 500 11px var(--mono); color: var(--ink); overflow: visible; }
+.bench > header .prog b { color: var(--pen); font-weight: 600; }
+.bench > header button { border: 1px solid var(--rule2); background: transparent; padding: 2px 7px; font: 400 10px var(--mono); color: var(--ink2); cursor: pointer; white-space: nowrap; }
+.bench > header .prog:empty + button { margin-left: auto; }
+.bench > header button:hover { border-color: var(--ink); color: var(--ink); }
+.bench .stage { position: relative; min-height: 0; overflow: hidden; }
+.bench .stage canvas { cursor: crosshair; }
+.bench .stage.run canvas { cursor: none; }
+.bpanel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(580px, calc(100% - 32px)); max-height: calc(100% - 28px); overflow: auto;
+  background: var(--pop-bg, var(--sheet)); border: 1.5px solid var(--ink); scrollbar-width: thin; scrollbar-color: var(--rule2) transparent;
+  box-shadow: 0 20px 48px color-mix(in srgb, #000 40%, transparent), 4px 4px 0 var(--ink); }
+.bpanel[hidden] { display: none; }
+.bpanel .grp > .k { display: flex; align-items: baseline; gap: 8px; }
+.bpanel .grp > .k small { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.bpanel .seg button { padding: 4px 12px 5px; font-size: 11px; }
+.bpanel .write { margin-top: 2px; }
+.bpanel .write .bar { display: none; }
+.bpanel .ready { padding: 22px 18px 18px; text-align: center; }
+.bpanel .ready .k { display: block; }
+.bpanel .ready .big { margin: 6px 0 4px; font: 600 40px/1.05 var(--mono); letter-spacing: -.02em; color: var(--pen); overflow-wrap: anywhere; }
+.bpanel .ready p { font: 400 11px/1.5 var(--mono); color: var(--ink2); }
+.bpanel .ready p + p { margin-top: 10px; }
+.bpanel .ready kbd { color: var(--ink); }
+.bpanel .ready.wait .big { color: var(--ink3); }
+.bpanel .ready.wait .big::after { content: "…"; }
+.bpick { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--rule2); }
+.bpick label { padding: 6px 10px; border-top: 1px solid var(--rule); font-size: 12.5px; font-weight: var(--bd-w); min-width: 0; }
+.bpick label:nth-child(-n+2) { border-top: 0; }
+.bpick label:nth-child(even) { border-left: 1px solid var(--rule); }
+.bpick label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bpick label b.use { margin-left: auto; }
+.sens-table td.best { color: var(--pen); font-weight: 600; }
+.sens-table td b.lb { font: 600 11px var(--mono); color: var(--pen); margin-right: 6px; }
+.sens-table tr.win td:first-child { box-shadow: inset 3px 0 0 var(--pen); }
+.verdict { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.verdict .v { font: 600 20px var(--mono); color: var(--pen); overflow-wrap: anywhere; }
+@media (max-width: 640px) { .bpick { grid-template-columns: 1fr; } .bpick label:nth-child(2) { border-top: 1px solid var(--rule); } .bpick label:nth-child(even) { border-left: 0; } .bench > header > span:not(.prog) { display: none; } }

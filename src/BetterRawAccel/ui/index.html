@@ -42,6 +42,7 @@
       <div class="doc"><span id="docT">Sensitivity curve</span> <small id="rev"></small></div>
       <button class="cell" id="profBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="profile"><span class="k" id="profK">Profile</span><span class="v" id="profV">default</span></button>
       <button class="cell" id="cm360Btn" aria-haspopup="dialog" aria-expanded="false" data-tip="cm360"><span class="k">cm/360</span><span class="v" id="cm360V">calc</span></button>
+      <button class="cell" id="testBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="test"><span class="k">Aim test</span><span class="v" id="testV">profiles</span></button>
       <button class="cell" id="devBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="device"><span class="k">Device</span><span class="v" id="devV"></span></button>
       <button class="cell" id="sysBtn" aria-haspopup="dialog" aria-expanded="false" data-tip="driver"><span class="k">Driver</span><span class="v"><span class="led" id="led"></span><span id="drvV">connected</span></span></button>
       <button class="cell" id="themeBtn" aria-haspopup="menu" aria-expanded="false" data-tip="theme"><span class="k">Sheet</span><span class="v" id="themeV"></span></button>
@@ -95,6 +96,13 @@
       <div class="ro" tabindex="0" data-tip="out"><div class="k">Output speed</div><div class="v"><span id="sOut">0.0</span><small data-su>c/ms</small></div></div>
       <div class="ro" tabindex="0" data-tip="peak"><div class="k">Peak · 3 s hold</div><div class="v"><span id="sPk">0.0</span><small data-su>c/ms</small></div></div>
     </div>
+    <div class="bench" id="bench" role="dialog" aria-label="Aim test" hidden>
+      <header><h3>Aim test</h3><span id="bnSub">same drill on each profile · pick the one you aim best with</span><span class="prog" id="bnProg"></span><button id="bnClose">Esc · close</button></header>
+      <div class="stage" id="bnStage">
+        <canvas id="bcv"></canvas>
+        <div class="bpanel" id="bnPanel"></div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -111,7 +119,7 @@
     <li><b>Dashed curve</b><span>What the driver has now. It appears while you have unwritten edits; the status line counts them.</span></li>
     <li><b>Write to driver</b><span>Button or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. The driver waits one second before using new settings; the pen re-traces the curve when it lands.</span></li>
     <li><b>Undo</b><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>+<kbd>Y</kbd> step through edits. <b style="letter-spacing:0;text-transform:none">×</b> next to the status drops everything not yet written.</span></li>
-    <li><b>Profile &amp; device</b><span>Title block: keep several profiles, and give a mouse its own DPI, polling rate or profile.</span></li>
+    <li><b>Profile &amp; device</b><span>Title block: keep several profiles, run the same aim drill on each under <b style="letter-spacing:0;text-transform:none">Aim test</b>, and give a mouse its own DPI, polling rate or profile.</span></li>
     <li><b>Driver, sheet &amp; type</b><span>Driver opens start-up, MCP, update and import/export settings. Sheet and Type change the look. <kbd>?</kbd> opens these notes.</span></li>
   </ol>
 </div>

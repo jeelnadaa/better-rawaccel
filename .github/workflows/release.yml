@@ -8,6 +8,8 @@ on:
       - "**.md"
       - "doc/**"
       - "design/**"
+      - "website/**"
+      - "wrangler.*"
   workflow_dispatch:
 
 permissions:

@@ -534,6 +534,7 @@ button { font-family: var(--font-ui); cursor: pointer; border: none; background:
 .film-video {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 16 / 9;
   background: #0c0d0e;
 }

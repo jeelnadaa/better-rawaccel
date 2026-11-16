@@ -25,7 +25,8 @@ Requirements: Windows 10 or 11, 64-bit, and the [WebView2 Runtime](https://devel
 - **Plot** — the solid curve is what you are editing, computed by the driver's own code. The dashed curve is what the driver has now. Switch between sensitivity, velocity and gain at the top right.
 - **Write to driver** — button or `Ctrl`+`Enter`. The driver waits one second before using new settings (Raw Accel's anti-abuse delay, kept as is).
 - **Undo / redo** — `Ctrl`+`Z`, `Ctrl`+`Y`.
-- **Title block** — Profile, Device, Driver (start-up, MCP, updates, import/export), Sheet (theme), Type (typeface).
+- **Aim test** — title block. Runs the same drill (flick, micro adjustments or tracking) on each profile you pick, with your game's sensitivity and field of view, then ranks them. Blind mode hides which profile is which until the results. Closing puts your previous profile back.
+- **Title block** — Profile, cm/360, Aim test, Device, Driver (start-up, MCP, updates, import/export), Sheet (theme), Type (typeface).
 - **`?`** — every control and shortcut on one sheet.
 
 The driver forgets its settings on every restart. Tick *Apply my settings when I sign in to Windows* under **Driver** to have Raw Accel's `writer.exe` apply them at logon.

@@ -48,6 +48,8 @@ Checks were made by driving the running app through its MCP server and reading w
 - [x] Velocity and gain plots, switched at the top right of the plot or with `set_app_settings`
 - [x] Offline fonts: Archivo and IBM Plex Mono are bundled; Satoshi and Cabinet Grotesk stay online-only for licence reasons and fall back to Archivo
 - [x] Live marker ignores mice the driver leaves alone and mice on another profile; DPI normalisation needs no special handling (verified: handle routing rules for active vs other profile and disabled devices)
+- [~] Aim test: the same Flick, Micro or Track drill on up to four profiles (switched with `use_profile`), with the game's yaw, in-game sens and FOV, blind A/B order, a ranked results table and a way back to the profile you had (checked in a browser with a stubbed host and in the running app's window; a live round under pointer lock with raw input in WebView2 has not been played by hand yet)
+- [x] Pin, Hist and PNG on the plot strip work again: the view buttons no longer take over their clicks, an unknown view is ignored, and a frame that throws no longer stops the plot for good
 
 ## Profile in use (fixed 2026-11-12)
 - [x] The app opens on the profile your mouse uses in the driver, not always the first one
